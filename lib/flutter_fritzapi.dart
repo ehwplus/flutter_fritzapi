@@ -1,4 +1,3 @@
 library flutter_fritzapi;
 
-import 'package:flutter/foundation.dart';
-import 'package:flutter/widgets.dart';
+export 'package:flutter_fritzapi/flutter_fritzapi.dart';
