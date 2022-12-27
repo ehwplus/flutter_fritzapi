@@ -35,11 +35,11 @@ Map<String, dynamic> _$EnergyStatsToJson(EnergyStats instance) =>
     };
 
 const _$TabTypeEnumMap = {
-  TabType.hours: 'hours',
-  TabType.day: 'day',
+  TabType.hour: 'hour',
+  TabType.day: '24h',
   TabType.week: 'week',
   TabType.month: 'month',
-  TabType.twoYears: 'twoYears',
+  TabType.twoYears: '2years',
 };
 
 EnergyStat _$EnergyStatFromJson(Map<String, dynamic> json) => EnergyStat(
