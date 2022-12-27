@@ -76,10 +76,12 @@ class EnergyStats {
 }
 
 enum TabType {
-  hours,
+  hour,
+  @JsonValue('24h')
   day,
   week,
   month,
+  @JsonValue('2years')
   twoYears,
 }
 
