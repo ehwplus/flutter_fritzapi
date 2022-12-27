@@ -16,4 +16,15 @@ class CustomFritzApiClient extends FritzApiClient {
     );
   }
 
+  @override
+  Future<FritzApiResponse> post(Uri url, {Map<String, String>? headers, required Map<String, String> body}) async {
+    final response = await http.post(url, headers: headers, body: body);
+    final responseBody = utf8.decode(response.bodyBytes);
+
+    return FritzApiResponse(
+      statusCode: response.statusCode,
+      body: responseBody,
+    );
+  }
+
 }

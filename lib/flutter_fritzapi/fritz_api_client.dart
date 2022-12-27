@@ -1,7 +1,10 @@
 import 'dart:convert';
+import 'package:crypto/crypto.dart';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_fritzapi/flutter_fritzapi.dart';
+
+import 'encode_utf16le.dart';
 
 abstract class FritzApiClient {
 
@@ -32,6 +35,7 @@ abstract class FritzApiClient {
   }
 
   Future<String?> _getChallenge() async {
+    /// Der Wert <challenge> kann aus der Datei login_sid.lua ausgelesen werden
     /*
       <SessionInfo>
         <SID>0000000000000000</SID>
@@ -48,7 +52,7 @@ abstract class FritzApiClient {
   }
 
   Future<String?> getSessionId({
-    String username = 'fritz1234',
+    String username = 'fritz2672',
     required String password,
   }) async {
     // AVM documentation (German): https://avm.de/fileadmin/user_upload/Global/Service/Schnittstellen/Session-ID_deutsch_13Nov18.pdf
@@ -58,21 +62,28 @@ abstract class FritzApiClient {
       return sessionId;
     }*/
 
-    final challenge = _getChallenge();
+    final challenge = await _getChallenge();
+
+    /// <md5> ist der MD5 (32 Hexzeichen mit Kleinbuchstaben) von
+    /// <challenge>-<klartextpassword>
     final challengeResponse = StringBuffer()
       ..write(challenge)
       ..write('-')
       /*
             md5 = hashlib.md5()
-            md5.update(challenge.encode('utf-16le'))
-            md5.update('-'.encode('utf-16le'))
-            md5.update(password.encode('utf-16le'))
+            ..update(challenge.encode('utf-16le'))
+            ..update('-'.encode('utf-16le'))
+            ..update(password.encode('utf-16le'))
             response = challenge + '-' + md5.hexdigest()
        */
-      ..write("require('crypto').createHash('md5').update(Buffer(challenge+'-'+password, 'UTF-16LE')).digest('hex')");
-    final url = Uri.parse('$baseUrl/login_sid.lua?username=$username&response=${challengeResponse.toString()}');
-    final response = await get(url);
-    return sessionId = 'TODO: response.match("<SID>(.*?)</SID>")[1]';
+      // require('crypto').createHash('md5').update(Buffer(challenge+'-'+password, 'UTF-16LE')).digest('hex')
+      ..write(md5.convert(encodeUtf16le('$challenge-$password')).toString());
+    final url = Uri.parse('$baseUrl/login_sid.lua');
+    final response = (await post(url, body: {
+      'response': challengeResponse.toString(),
+      'username': username,
+    })).body;
+    return sessionId = _extractValueOfXmlTag(xml: response, xmlTag: 'SID');
   }
 
   /// http://fritz.box/net/home_auto_query.lua
@@ -99,6 +110,8 @@ abstract class FritzApiClient {
   }
 
   Future<FritzApiResponse> get(Uri url, {Map<String, String>? headers});
+
+  Future<FritzApiResponse> post(Uri url, {Map<String, String>? headers, required Map<String, String> body});
 
 }
 

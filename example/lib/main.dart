@@ -47,7 +47,7 @@ class _MyHomePageState extends State<MyHomePage> {
         currentStep: currentStep,
         onStepContinue: () {
           if (currentStep == 0) {
-            fritzApiClient.getSessionId(username: '', password: '');
+            fritzApiClient.getSessionId(username: 'fritz1234', password: '<enter_your_password_here>');
           }
           if (currentStep < 2) {
             //currentStep++;
