@@ -36,6 +36,10 @@ class _MyHomePageState extends State<MyHomePage> {
 
   int currentStep = 0;
 
+  String? password;
+
+  String? sessionId;
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -46,10 +50,16 @@ class _MyHomePageState extends State<MyHomePage> {
         physics: const ScrollPhysics(),
         currentStep: currentStep,
         onStepContinue: () {
-          if (currentStep == 0) {
-            fritzApiClient.getSessionId(username: 'fritz1234', password: '<enter_your_password_here>');
+          if (currentStep == 0 && password?.isNotEmpty == true) {
+            fritzApiClient.getSessionId(password: password!).then((value){
+              setState(() {
+                sessionId = value;
+              });
+            });
+            currentStep++;
+            setState(() {});
           }
-          if (currentStep < 2) {
+          if (currentStep == 1 && sessionId?.isNotEmpty == true) {
             //currentStep++;
 
             //setState(() {});
@@ -65,23 +75,42 @@ class _MyHomePageState extends State<MyHomePage> {
         steps: [
           Step(
             title: const Text('Fetch session id'),
-            content: SizedBox.shrink(),
+            content: TextField(
+              decoration: const InputDecoration(
+                label: Text('Password'),
+              ),
+              onChanged: (String input) {
+                setState(() {
+                  password = input;
+                });
+              },
+            ),
             state: currentStep >= 0 ?
             StepState.complete : StepState.disabled,
           ),
           Step(
             title: const Text('Select device'),
-            content: SizedBox.shrink(),
-            isActive: currentStep > 1,
-            state: currentStep >= 1 ?
-            StepState.complete : StepState.disabled,
+            content: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Successfully fetched session id (SID) "$sessionId" for next API calls.'),
+                const SizedBox(height: 8),
+                const CircularProgressIndicator(),
+                Text('Loading devices', style: Theme.of(context).textTheme.caption),
+              ],
+            ),
+            isActive: currentStep > 1 && sessionId?.isNotEmpty == true,
+            state: currentStep >= 1
+                ? StepState.complete
+                : StepState.disabled,
           ),
           Step(
             title: const Text('See EnergyStats'),
             content: SizedBox.shrink(),
             isActive: currentStep > 2,
-            state: currentStep >= 2 ?
-            StepState.complete : StepState.disabled,
+            state: currentStep >= 2
+                ? StepState.complete
+                : StepState.disabled,
           ),
         ],
       )

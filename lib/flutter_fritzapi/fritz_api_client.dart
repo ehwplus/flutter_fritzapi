@@ -3,6 +3,7 @@ import 'package:crypto/crypto.dart';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_fritzapi/flutter_fritzapi.dart';
+import 'package:flutter_fritzapi/flutter_fritzapi/xml_select.dart';
 
 import 'encode_utf16le.dart';
 
@@ -25,16 +26,7 @@ abstract class FritzApiClient {
   /// The session ID 0 (000000000000) is always invalid.
   String? sessionId;
 
-  String? _extractValueOfXmlTag({required String xml, required String xmlTag}) {
-    if (!xml.contains(xmlTag)) {
-      return null;
-    }
-    final firstSplit = xml.split('<$xmlTag>')[1];
-    final value = firstSplit.split('</''$xmlTag>')[0];
-    return value;
-  }
-
-  Future<String?> _getChallenge() async {
+  Future<Map<String, String?>> _getChallenge() async {
     /// Der Wert <challenge> kann aus der Datei login_sid.lua ausgelesen werden
     /*
       <SessionInfo>
@@ -48,11 +40,23 @@ abstract class FritzApiClient {
       </SessionInfo>
      */
     final challengeResponse = await get(Uri.parse('$baseUrl/login_sid.lua'));
-    return _extractValueOfXmlTag(xml: challengeResponse.body, xmlTag: 'Challenge');
+    final challenge = extractValueOfXmlTag(
+      xml: challengeResponse.body,
+      xmlTag: 'Challenge',
+    );
+    final user = extractValueOfXmlTag(
+      xml: challengeResponse.body,
+      xmlTag: 'User',
+    );
+
+    return {
+      'user': user,
+      'challenge': challenge,
+    };
   }
 
   Future<String?> getSessionId({
-    String username = 'fritz2672',
+    String? username,
     required String password,
   }) async {
     // AVM documentation (German): https://avm.de/fileadmin/user_upload/Global/Service/Schnittstellen/Session-ID_deutsch_13Nov18.pdf
@@ -62,7 +66,9 @@ abstract class FritzApiClient {
       return sessionId;
     }*/
 
-    final challenge = await _getChallenge();
+    final challengeMap = await _getChallenge();
+    final challenge = challengeMap['challenge'];
+    final user = challengeMap['user'];
 
     /// <md5> ist der MD5 (32 Hexzeichen mit Kleinbuchstaben) von
     /// <challenge>-<klartextpassword>
@@ -79,11 +85,20 @@ abstract class FritzApiClient {
       // require('crypto').createHash('md5').update(Buffer(challenge+'-'+password, 'UTF-16LE')).digest('hex')
       ..write(md5.convert(encodeUtf16le('$challenge-$password')).toString());
     final url = Uri.parse('$baseUrl/login_sid.lua');
+    if ((username ?? user) == null) {
+      return null;
+    }
     final response = (await post(url, body: {
       'response': challengeResponse.toString(),
-      'username': username,
+      'username': username ?? user!,
     })).body;
-    return sessionId = _extractValueOfXmlTag(xml: response, xmlTag: 'SID');
+    return sessionId = extractValueOfXmlTag(xml: response, xmlTag: 'SID');
+  }
+
+  Future<Map<int, String>> getDevices() async {
+    assert(sessionId != null && sessionId!.isNotEmpty, 'SessionId must not be null or empty');
+
+    return {};
   }
 
   /// http://fritz.box/net/home_auto_query.lua
