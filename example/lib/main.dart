@@ -1,3 +1,4 @@
+import 'package:example/custom_fritz_api_client.dart';
 import 'package:flutter/material.dart';
 
 void main() {
@@ -10,46 +11,80 @@ class MyApp extends StatelessWidget {
   // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
+    const title = 'FRITZ!API Demo App';
     return MaterialApp(
-      title: 'FRITZ!API demo app',
+      title: title,
       theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // Try running your application with "flutter run". You'll see the
-        // application has a blue toolbar. Then, without quitting the app, try
-        // changing the primarySwatch below to Colors.green and then invoke
-        // "hot reload" (press "r" in the console where you ran "flutter run",
-        // or simply save your changes to "hot reload" in a Flutter IDE).
-        // Notice that the counter didn't reset back to zero; the application
-        // is not restarted.
         primarySwatch: Colors.blue,
       ),
-      home: const MyHomePage(title: 'FRITZ!API demo app'),
+      home: const MyHomePage(title: title),
     );
   }
 }
 
-class MyHomePage extends StatelessWidget {
+class MyHomePage extends StatefulWidget {
   const MyHomePage({super.key, required this.title});
 
   final String title;
 
   @override
+  State<MyHomePage> createState() => _MyHomePageState();
+}
+
+class _MyHomePageState extends State<MyHomePage> {
+  final fritzApiClient = CustomFritzApiClient();
+
+  int currentStep = 0;
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(title),
+        title: Text(widget.title),
       ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.start,
-          children: const [
-            Text(
-              'FRITZ!API demo app',
-            ),
-          ],
-        ),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
+      body: Stepper(
+        physics: const ScrollPhysics(),
+        currentStep: currentStep,
+        onStepContinue: () {
+          if (currentStep == 0) {
+            fritzApiClient.getSessionId(username: '', password: '');
+          }
+          if (currentStep < 2) {
+            //currentStep++;
+
+            //setState(() {});
+          }
+        },
+        onStepTapped: (tappedStep) {
+          if (tappedStep < currentStep) {
+            setState(() {
+              currentStep = tappedStep;
+            });
+          }
+        },
+        steps: [
+          Step(
+            title: const Text('Fetch session id'),
+            content: SizedBox.shrink(),
+            state: currentStep >= 0 ?
+            StepState.complete : StepState.disabled,
+          ),
+          Step(
+            title: const Text('Select device'),
+            content: SizedBox.shrink(),
+            isActive: currentStep > 1,
+            state: currentStep >= 1 ?
+            StepState.complete : StepState.disabled,
+          ),
+          Step(
+            title: const Text('See EnergyStats'),
+            content: SizedBox.shrink(),
+            isActive: currentStep > 2,
+            state: currentStep >= 2 ?
+            StepState.complete : StepState.disabled,
+          ),
+        ],
+      )
     );
   }
 }
