@@ -58,7 +58,7 @@ class EnergyStats {
 
   /// Current time in millis since epoch, e.g. "1672093500"
   @JsonKey(name: 'CurrentDateInSec')
-  final int currentDateInSec;
+  final String currentDateInSec;
 
   /// TODO: Unclear what this boolean value means.
   /// true or false

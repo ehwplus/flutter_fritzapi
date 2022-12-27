@@ -14,7 +14,7 @@ EnergyStats _$EnergyStatsFromJson(Map<String, dynamic> json) => EnergyStats(
       deviceConnectState: json['DeviceConnectState'] as String,
       deviceSwitchState: json['DeviceSwitchState'] as String,
       tabType: $enumDecode(_$TabTypeEnumMap, json['tabType']),
-      currentDateInSec: json['CurrentDateInSec'] as int,
+      currentDateInSec: json['CurrentDateInSec'] as String,
       requestResult: json['RequestResult'] as bool,
       energyStat:
           EnergyStat.fromJson(json['EnergyStat'] as Map<String, dynamic>),
