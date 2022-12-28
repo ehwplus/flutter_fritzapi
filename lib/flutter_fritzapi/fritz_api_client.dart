@@ -95,10 +95,20 @@ abstract class FritzApiClient {
     return sessionId = extractValueOfXmlTag(xml: response, xmlTag: 'SID');
   }
 
-  Future<Map<int, String>> getDevices() async {
+  Future<Devices> getDevices() async {
     assert(sessionId != null && sessionId!.isNotEmpty, 'SessionId must not be null or empty');
 
-    return {};
+    final url = Uri.parse('$baseUrl/data.lua');
+    final body = <String, String>{
+      'sid': sessionId!,
+      'xhrId': 'all',
+      'xhr': '1',
+      'page': 'sh_dev',
+    };
+    final result = await post(url, body: body);
+    final devices = Devices.fromJson(jsonDecode(result.body));
+
+    return devices;
   }
 
   /// http://fritz.box/net/home_auto_query.lua

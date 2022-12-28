@@ -1,5 +1,6 @@
 import 'package:example/custom_fritz_api_client.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_fritzapi/flutter_fritzapi.dart';
 
 void main() {
   runApp(const MyApp());
@@ -40,6 +41,8 @@ class _MyHomePageState extends State<MyHomePage> {
 
   String? sessionId;
 
+  Iterable<Device>? measuringDevices;
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -54,12 +57,17 @@ class _MyHomePageState extends State<MyHomePage> {
             fritzApiClient.getSessionId(password: password!).then((value){
               setState(() {
                 sessionId = value;
+                currentStep = 1;
+                fritzApiClient.getDevices().then((devices) {
+                  setState(() {
+                    measuringDevices = devices.getConnectedDevices();
+                  });
+                });
               });
             });
-            currentStep++;
-            setState(() {});
           }
           if (currentStep == 1 && sessionId?.isNotEmpty == true) {
+
             //currentStep++;
 
             //setState(() {});
@@ -95,8 +103,13 @@ class _MyHomePageState extends State<MyHomePage> {
               children: [
                 Text('Successfully fetched session id (SID) "$sessionId" for next API calls.'),
                 const SizedBox(height: 8),
-                const CircularProgressIndicator(),
-                Text('Loading devices', style: Theme.of(context).textTheme.caption),
+                if (measuringDevices == null)
+                  ...[
+                    const CircularProgressIndicator(),
+                    Text('Loading devices', style: Theme.of(context).textTheme.caption),
+                  ]
+                else for (final device in measuringDevices!)
+                  Text('${device.displayName} (${device.model})'),
               ],
             ),
             isActive: currentStep > 1 && sessionId?.isNotEmpty == true,
