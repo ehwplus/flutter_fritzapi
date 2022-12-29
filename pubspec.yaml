@@ -1,6 +1,6 @@
 name: flutter_fritzapi
 description: API for Fritz!Box, Fritz!DECT
-version: 0.0.1
+version: 0.0.2
 homepage: https://github.com/ehwplus/flutter_fritzapi
 
 environment:

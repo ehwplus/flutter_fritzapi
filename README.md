@@ -13,8 +13,13 @@ and the Flutter guide for
 
 Get data from Fritz!Box, FRITZ!DECT inside Flutter applications
 
-Right now this is only tested inside local network. Also note that emulator seems not to be able
-to connect with FRITZ!Box.
+## Known limitations
+
+* Right now this is only tested inside local network.
+* Note that emulator seems not to be able to connect with FRITZ!Box.
+* This is just a very first draft of the plugin. Feel free to make pull requests. Best way to start
+  is unfortunately not the AVM documentation. Open http://fritz.box inside your browser and analyze
+  network calls via developer tools/network analysis.
 
 ## Features
 
