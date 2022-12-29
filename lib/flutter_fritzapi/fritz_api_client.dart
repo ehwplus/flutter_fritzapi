@@ -26,6 +26,15 @@ abstract class FritzApiClient {
   /// The session ID 0 (000000000000) is always invalid.
   String? sessionId;
 
+  Future<bool> isConnectedWithFritzBox() async {
+    final challengeResponse = await get(Uri.parse('$baseUrl/login_sid.lua'));
+    final challenge = extractValueOfXmlTag(
+      xml: challengeResponse.body,
+      xmlTag: 'Challenge',
+    );
+    return challenge != null;
+  }
+
   Future<Map<String, String?>> _getChallenge() async {
     /// Der Wert <challenge> kann aus der Datei login_sid.lua ausgelesen werden
     /*
@@ -92,7 +101,12 @@ abstract class FritzApiClient {
       'response': challengeResponse.toString(),
       'username': username ?? user!,
     })).body;
-    return sessionId = extractValueOfXmlTag(xml: response, xmlTag: 'SID');
+    final sessionId = extractValueOfXmlTag(xml: response, xmlTag: 'SID');
+    if (sessionId != '0000000000000000') {
+      this.sessionId = sessionId;
+      return sessionId;
+    }
+    return null;
   }
 
   Future<Devices> getDevices() async {
@@ -118,7 +132,7 @@ abstract class FritzApiClient {
   ///   &xhr=1
   Future<EnergyStats?> getEnergyStats({
     required HomeAutoQueryCommand command,
-    required String deviceId,
+    required int deviceId,
   }) async {
     assert(sessionId != null && sessionId!.isNotEmpty, 'SessionId must not be null or empty');
 

@@ -5,6 +5,10 @@ import 'package:http/http.dart' as http;
 import 'package:flutter_fritzapi/flutter_fritzapi.dart';
 
 class CustomFritzApiClient extends FritzApiClient {
+  CustomFritzApiClient({
+    String baseUrl = 'http://fritz.box',
+  }): super(baseUrl: baseUrl);
+
   @override
   Future<FritzApiResponse> get(Uri url, {Map<String, String>? headers}) async {
     final response = await http.get(url, headers: headers);
