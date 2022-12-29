@@ -39,6 +39,8 @@ class _MyHomePageState extends State<MyHomePage> {
 
   bool isConnected = false;
 
+  String? connectionFailure;
+
   String? password;
 
   String? sessionId;
@@ -72,8 +74,13 @@ class _MyHomePageState extends State<MyHomePage> {
               fritzApiClient.isConnectedWithFritzBox().then((isConnected) {
                 this.isConnected = isConnected;
                 if (isConnected) {
+                  connectionFailure = null;
                   setState(() {
                     currentStep = 1;
+                  });
+                } else {
+                  setState(() {
+                    connectionFailure = 'Failed host lookup: ${fritzApiClient.baseUrl}';
                   });
                 }
               });
@@ -119,7 +126,9 @@ class _MyHomePageState extends State<MyHomePage> {
         steps: [
           Step(
             title: const Text('Check if connected with Fritz!Box'),
-            content: const SizedBox.shrink(),
+            content: connectionFailure != null
+              ? Text(connectionFailure!, style: const TextStyle(color: Colors.red))
+              : const SizedBox.shrink(),
             isActive: currentStep == 0,
             state: currentStep > 0
                 ? StepState.complete

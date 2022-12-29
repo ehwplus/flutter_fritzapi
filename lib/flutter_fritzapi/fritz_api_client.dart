@@ -27,12 +27,16 @@ abstract class FritzApiClient {
   String? sessionId;
 
   Future<bool> isConnectedWithFritzBox() async {
-    final challengeResponse = await get(Uri.parse('$baseUrl/login_sid.lua'));
-    final challenge = extractValueOfXmlTag(
-      xml: challengeResponse.body,
-      xmlTag: 'Challenge',
-    );
-    return challenge != null;
+    try {
+      final challengeResponse = await get(Uri.parse('$baseUrl/login_sid.lua'));
+      final challenge = extractValueOfXmlTag(
+        xml: challengeResponse.body,
+        xmlTag: 'Challenge',
+      );
+      return challenge != null;
+    } catch (e) {
+      return false;
+    }
   }
 
   Future<Map<String, String?>> _getChallenge() async {
