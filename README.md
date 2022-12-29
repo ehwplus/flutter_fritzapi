@@ -20,7 +20,7 @@ to connect with FRITZ!Box.
 
 * Fetch session id for FRITZ!Box API access
 * Fetch smart home devices connected to Fritz!Box
-* Get energy consumption in kWh of FRITZ!DECT 200
+* Get energy consumption in Wh of FRITZ!DECT 200
 
 ## Usage
 
