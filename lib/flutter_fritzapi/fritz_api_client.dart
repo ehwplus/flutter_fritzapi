@@ -168,7 +168,6 @@ class FritzApiResponse {
 }
 
 enum HomeAutoQueryCommand {
-  EnergyStats_hour,
   EnergyStats_24h,
   EnergyStats_week,
   EnergyStats_month,

@@ -180,6 +180,7 @@ class _MyHomePageState extends State<MyHomePage> {
           Step(
             title: const Text('Fetch EnergyStats'),
             content: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 for (final command in HomeAutoQueryCommand.values)
                   ListTile(
@@ -199,7 +200,7 @@ class _MyHomePageState extends State<MyHomePage> {
                         } else {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
-                              content: Text('Failed to fetch EnergyStats for ${selectedDevice!.displayName}.'),
+                              content: Text('Failed to fetch EnergyStats for ${command.name} of ${selectedDevice!.displayName}.'),
                             ),
                           );
                         }
@@ -208,8 +209,8 @@ class _MyHomePageState extends State<MyHomePage> {
                   ),
                 if (stats != null)
                   ...[
-                    Text(stats!.energyStat.values.toSet().toString()),
-                    Text('Each value represents ${(stats!.energyStat.timesType/60).toStringAsFixed(0)} minutes.'),
+                    Text('${stats!.energyStat.values.length} values where each value represents ${(stats!.energyStat.timesType/60/60).toStringAsFixed(2).replaceFirst('.00', '')} hours:'),
+                    Text(stats!.energyStat.values.toString()),
                   ]
               ],
             ),
