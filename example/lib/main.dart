@@ -58,178 +58,180 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.title),
-      ),
-      body: Stepper(
-        physics: const ScrollPhysics(),
-        currentStep: currentStep,
-        onStepContinue: () {
-          if (currentStep == 0) {
-            if (isConnected) {
-              setState(() {
-                currentStep = 1;
-              });
-            } else {
-              fritzApiClient.isConnectedWithFritzBox().then((isConnected) {
-                this.isConnected = isConnected;
-                if (isConnected) {
-                  connectionFailure = null;
+        appBar: AppBar(
+          title: Text(widget.title),
+        ),
+        body: Stepper(
+          physics: const ScrollPhysics(),
+          currentStep: currentStep,
+          onStepContinue: () {
+            if (currentStep == 0) {
+              if (isConnected) {
+                setState(() {
+                  currentStep = 1;
+                });
+              } else {
+                fritzApiClient.isConnectedWithFritzBox().then((isConnected) {
+                  this.isConnected = isConnected;
+                  if (isConnected) {
+                    connectionFailure = null;
+                    setState(() {
+                      currentStep = 1;
+                    });
+                  } else {
+                    setState(() {
+                      connectionFailure = 'Failed host lookup: ${fritzApiClient.baseUrl}';
+                    });
+                  }
+                });
+              }
+            } else if (currentStep == 1 && password?.isNotEmpty == true) {
+              fritzApiClient.getSessionId(password: password!).then((sessionId) {
+                if (sessionId == null) {
                   setState(() {
-                    currentStep = 1;
+                    failedToFetchSessionId = true;
                   });
                 } else {
+                  failedToFetchSessionId = false;
                   setState(() {
-                    connectionFailure = 'Failed host lookup: ${fritzApiClient.baseUrl}';
+                    this.sessionId = sessionId;
+                    currentStep = 2;
+                  });
+                  fritzApiClient.getDevices().then((devices) {
+                    setState(() {
+                      measuringDevices = devices.getConnectedDevices();
+                    });
                   });
                 }
               });
-            }
-          } else if (currentStep == 1 && password?.isNotEmpty == true) {
-            fritzApiClient.getSessionId(password: password!).then((sessionId){
-              if (sessionId == null) {
-                setState(() {
-                  failedToFetchSessionId = true;
-                });
+            } else if (currentStep == 2 && sessionId?.isNotEmpty == true) {
+              if (selectedDevice == null) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('You have to select a device before you can continue.')),
+                );
               } else {
-                failedToFetchSessionId = false;
                 setState(() {
-                  this.sessionId = sessionId;
-                  currentStep = 2;
-                });
-                fritzApiClient.getDevices().then((devices) {
-                  setState(() {
-                    measuringDevices = devices.getConnectedDevices();
-                  });
+                  currentStep++;
                 });
               }
-            });
-          } else if (currentStep == 2 && sessionId?.isNotEmpty == true) {
-            if (selectedDevice == null) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('You have to select a device before you can continue.')),
-              );
-            } else {
-              setState(() {
-                currentStep++;
-              });
+            } else if (currentStep == 3) {
+              // Cannot continue on last step
             }
-          } else if (currentStep == 3) {
-            // Cannot continue on last step
-          }
-        },
-        onStepTapped: (tappedStep) {
-          setState(() {
-            currentStep = tappedStep;
-          });
-        },
-        steps: [
-          Step(
-            title: const Text('Check if connected with Fritz!Box'),
-            content: connectionFailure != null
-              ? Text(connectionFailure!, style: const TextStyle(color: Colors.red))
-              : const SizedBox.shrink(),
-            isActive: currentStep == 0,
-            state: currentStep > 0
-                ? StepState.complete
-                : StepState.indexed,
-          ),
-          Step(
-            title: const Text('Fetch session id'),
-            content: Column(
-              children: [
-                if (failedToFetchSessionId)
+          },
+          onStepTapped: (tappedStep) {
+            setState(() {
+              currentStep = tappedStep;
+            });
+          },
+          steps: [
+            Step(
+              title: const Text('Check if connected with Fritz!Box'),
+              content: connectionFailure != null
+                  ? Text(connectionFailure!, style: const TextStyle(color: Colors.red))
+                  : const SizedBox.shrink(),
+              isActive: currentStep == 0,
+              state: currentStep > 0 ? StepState.complete : StepState.indexed,
+            ),
+            Step(
+              title: const Text('Fetch session id'),
+              content: Column(
+                children: [
+                  if (failedToFetchSessionId)
                     const Text('Failed to fetch session id.', style: TextStyle(color: Colors.red)),
-                TextField(
-                  decoration: const InputDecoration(
-                    label: Text('Password'),
-                  ),
-                  onChanged: (String input) {
-                    setState(() {
-                      password = input;
-                    });
-                  },
-                )
-              ],
-            ),
-            isActive: currentStep == 1,
-            state: currentStep == 1
-                ? StepState.indexed
-                : currentStep > 1 || sessionId != null ? StepState.complete : StepState.disabled,
-          ),
-          Step(
-            title: const Text('Select device'),
-            content: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Successfully fetched session id (SID) "$sessionId" for next API calls in step 2. We should now do have access to devices.'),
-                const SizedBox(height: 8),
-                if (measuringDevices == null)
-                  ...[
-                    const CircularProgressIndicator(),
-                    Text('Loading devices', style: Theme.of(context).textTheme.caption),
-                  ]
-                else for (final device in measuringDevices!)
-                  ListTile(
-                    title: Text('${device.displayName} (${device.model})'),
-                    onTap: () {
+                  TextField(
+                    decoration: const InputDecoration(
+                      label: Text('Password'),
+                    ),
+                    onChanged: (String input) {
                       setState(() {
-                        selectedDevice = device;
-                        currentStep++;
+                        password = input;
                       });
                     },
-                  ),
-              ],
+                  )
+                ],
+              ),
+              isActive: currentStep == 1,
+              state: currentStep == 1
+                  ? StepState.indexed
+                  : currentStep > 1 || sessionId != null
+                      ? StepState.complete
+                      : StepState.disabled,
             ),
-            isActive: currentStep == 2,
-            state: currentStep == 2
-                ? StepState.indexed
-                : sessionId != null ? StepState.complete : StepState.disabled,
-          ),
-          Step(
-            title: const Text('Fetch EnergyStats'),
-            content: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                for (final command in HomeAutoQueryCommand.values)
-                  ListTile(
-                    title: Text(command.name.replaceFirst('EnergyStats_', '')),
-                    selected: this.command == command,
-                    onTap: () {
-                      final deviceId = selectedDevice!.id;
-                      fritzApiClient.getEnergyStats(
-                        command: command,
-                        deviceId: deviceId,
-                      ).then((result) {
-                        if (result != null) {
+            Step(
+              title: const Text('Select device'),
+              content: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                      'Successfully fetched session id (SID) "$sessionId" for next API calls in step 2. We should now do have access to devices.'),
+                  const SizedBox(height: 8),
+                  if (measuringDevices == null) ...[
+                    const CircularProgressIndicator(),
+                    Text('Loading devices', style: Theme.of(context).textTheme.labelMedium),
+                  ] else
+                    for (final device in measuringDevices!)
+                      ListTile(
+                        title: Text('${device.displayName} (${device.model})'),
+                        onTap: () {
                           setState(() {
-                            this.command = command;
-                            stats = result;
+                            selectedDevice = device;
+                            currentStep++;
                           });
-                        } else {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('Failed to fetch EnergyStats for ${command.name} of ${selectedDevice!.displayName}.'),
-                            ),
-                          );
-                        }
-                      });
-                    },
-                  ),
-                if (stats != null)
-                  ...[
-                    Text('${stats!.energyStat.values.length} values where each value represents ${(stats!.energyStat.timesType/60/60).toStringAsFixed(2).replaceFirst('.00', '')} hours:'),
+                        },
+                      ),
+                ],
+              ),
+              isActive: currentStep == 2,
+              state: currentStep == 2
+                  ? StepState.indexed
+                  : sessionId != null
+                      ? StepState.complete
+                      : StepState.disabled,
+            ),
+            Step(
+              title: const Text('Fetch EnergyStats'),
+              content: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  for (final command in HomeAutoQueryCommand.values)
+                    ListTile(
+                      title: Text(command.name.replaceFirst('EnergyStats_', '')),
+                      selected: this.command == command,
+                      onTap: () {
+                        final deviceId = selectedDevice!.id;
+                        fritzApiClient
+                            .getEnergyStats(
+                          command: command,
+                          deviceId: deviceId,
+                        )
+                            .then((result) {
+                          if (result != null) {
+                            setState(() {
+                              this.command = command;
+                              stats = result;
+                            });
+                          } else {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                    'Failed to fetch EnergyStats for ${command.name} of ${selectedDevice!.displayName}.'),
+                              ),
+                            );
+                          }
+                        });
+                      },
+                    ),
+                  if (stats != null) ...[
+                    Text(
+                        '${stats!.energyStat.values.length} values where each value represents ${(stats!.energyStat.timesType / 60 / 60).toStringAsFixed(2).replaceFirst('.00', '')} hours:'),
                     Text(stats!.energyStat.values.toString()),
                   ]
-              ],
+                ],
+              ),
+              isActive: currentStep == 3,
+              state: currentStep == 3 ? StepState.indexed : StepState.disabled,
             ),
-            isActive: currentStep == 3,
-            state: currentStep == 3
-                ? StepState.indexed
-                : StepState.disabled,
-          ),
-        ],
-      )
-    );
+          ],
+        ));
   }
 }
