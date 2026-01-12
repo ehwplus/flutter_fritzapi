@@ -1,19 +1,15 @@
 import 'package:json_annotation/json_annotation.dart';
 
 class Devices {
-  const Devices({
-    required this.devices,
-  });
+  const Devices({required this.devices});
 
   final List<Device> devices;
 
   Iterable<Device> getConnectedDevices({
     Iterable<DeviceCategory> acceptedDeviceCategories = const [DeviceCategory.SOCKET],
-  }) =>
-      devices.where((device) {
-        return device.isConnected &&
-            acceptedDeviceCategories.contains(device.category);
-      });
+  }) => devices.where((device) {
+    return device.isConnected && acceptedDeviceCategories.contains(device.category);
+  });
 
   // ignore: sort_constructors_first
   factory Devices.fromJson(Map<String, dynamic> json) {
@@ -59,12 +55,11 @@ class Device {
   }
 }
 
-enum DeviceCategory {
-  THERMOSTAT,
-  SOCKET,
-}
+enum DeviceCategory { THERMOSTAT, SOCKET, CONTROL, LAMP }
 
 const _$DeviceCategoryEnumMap = {
   DeviceCategory.THERMOSTAT: 'THERMOSTAT',
   DeviceCategory.SOCKET: 'SOCKET',
+  DeviceCategory.CONTROL: 'CONTROL',
+  DeviceCategory.LAMP: 'LAMP',
 };

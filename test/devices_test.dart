@@ -1,7 +1,7 @@
 import 'dart:convert';
 
-import 'package:flutter_fritzapi/flutter_fritzapi/devices.dart';
-import 'package:flutter_fritzapi/flutter_fritzapi/energy_stats.dart';
+import 'package:flutter_fritzapi/flutter_fritzapi/model/devices.dart';
+import 'package:flutter_fritzapi/flutter_fritzapi/model/energy_stats.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -52,21 +52,11 @@ void main() {
                   'nextChange': {
                     'description': {
                       'action': 'TARGET_TEMPERATURE',
-                      'presetTemperature': {
-                        'name': 'UPPER_TEMPERATURE',
-                        'temperature': 20
-                      }
+                      'presetTemperature': {'name': 'UPPER_TEMPERATURE', 'temperature': 20}
                     },
-                    'timeSetting': {
-                      'startDate': '2022-12-28',
-                      'startTime': '06:30:40'
-                    }
+                    'timeSetting': {'startDate': '2022-12-28', 'startTime': '06:30:40'}
                   },
-                  'temperatureDropDetection': {
-                    'doNotHeatOffsetInMinutes': 10,
-                    'sensitivity': 5,
-                    'isWindowOpen': false
-                  },
+                  'temperatureDropDetection': {'doNotHeatOffsetInMinutes': 10, 'sensitivity': 5, 'isWindowOpen': false},
                   'targetTemp': 16,
                   'timeControl': {
                     'isEnabled': true,
@@ -87,10 +77,7 @@ void main() {
                             },
                             'description': {
                               'action': 'SET_TEMPERATURE',
-                              'presetTemperature': {
-                                'name': 'HOLIDAY_TEMPERATURE',
-                                'temperature': 127.5
-                              }
+                              'presetTemperature': {'name': 'HOLIDAY_TEMPERATURE', 'temperature': 127.5}
                             }
                           },
                           {
@@ -104,10 +91,7 @@ void main() {
                             },
                             'description': {
                               'action': 'SET_TEMPERATURE',
-                              'presetTemperature': {
-                                'name': 'HOLIDAY_TEMPERATURE',
-                                'temperature': 127.5
-                              }
+                              'presetTemperature': {'name': 'HOLIDAY_TEMPERATURE', 'temperature': 127.5}
                             }
                           },
                           {
@@ -121,10 +105,7 @@ void main() {
                             },
                             'description': {
                               'action': 'SET_TEMPERATURE',
-                              'presetTemperature': {
-                                'name': 'HOLIDAY_TEMPERATURE',
-                                'temperature': 127.5
-                              }
+                              'presetTemperature': {'name': 'HOLIDAY_TEMPERATURE', 'temperature': 127.5}
                             }
                           },
                           {
@@ -138,10 +119,7 @@ void main() {
                             },
                             'description': {
                               'action': 'SET_TEMPERATURE',
-                              'presetTemperature': {
-                                'name': 'HOLIDAY_TEMPERATURE',
-                                'temperature': 127.5
-                              }
+                              'presetTemperature': {'name': 'HOLIDAY_TEMPERATURE', 'temperature': 127.5}
                             }
                           }
                         ]
@@ -153,11 +131,7 @@ void main() {
                         'actions': [
                           {
                             'isEnabled': true,
-                            'timeSetting': {
-                              'startDate': '2019-06-01',
-                              'repetition': 'YEARLY',
-                              'endDate': '2019-08-31'
-                            },
+                            'timeSetting': {'startDate': '2019-06-01', 'repetition': 'YEARLY', 'endDate': '2019-08-31'},
                             'description': {'action': 'SET_OFF'}
                           }
                         ]
@@ -175,10 +149,7 @@ void main() {
                             },
                             'description': {
                               'action': 'SET_TEMPERATURE',
-                              'presetTemperature': {
-                                'name': 'UPPER_TEMPERATURE',
-                                'temperature': 20
-                              }
+                              'presetTemperature': {'name': 'UPPER_TEMPERATURE', 'temperature': 20}
                             }
                           },
                           {
@@ -189,10 +160,7 @@ void main() {
                             },
                             'description': {
                               'action': 'SET_TEMPERATURE',
-                              'presetTemperature': {
-                                'name': 'LOWER_TEMPERATURE',
-                                'temperature': 16
-                              }
+                              'presetTemperature': {'name': 'LOWER_TEMPERATURE', 'temperature': 16}
                             }
                           },
                           {
@@ -203,10 +171,7 @@ void main() {
                             },
                             'description': {
                               'action': 'SET_TEMPERATURE',
-                              'presetTemperature': {
-                                'name': 'UPPER_TEMPERATURE',
-                                'temperature': 20
-                              }
+                              'presetTemperature': {'name': 'UPPER_TEMPERATURE', 'temperature': 20}
                             }
                           },
                           {
@@ -217,10 +182,7 @@ void main() {
                             },
                             'description': {
                               'action': 'SET_TEMPERATURE',
-                              'presetTemperature': {
-                                'name': 'LOWER_TEMPERATURE',
-                                'temperature': 16
-                              }
+                              'presetTemperature': {'name': 'LOWER_TEMPERATURE', 'temperature': 16}
                             }
                           },
                           {
@@ -231,10 +193,7 @@ void main() {
                             },
                             'description': {
                               'action': 'SET_TEMPERATURE',
-                              'presetTemperature': {
-                                'name': 'UPPER_TEMPERATURE',
-                                'temperature': 20
-                              }
+                              'presetTemperature': {'name': 'UPPER_TEMPERATURE', 'temperature': 20}
                             }
                           },
                           {
@@ -245,10 +204,7 @@ void main() {
                             },
                             'description': {
                               'action': 'SET_TEMPERATURE',
-                              'presetTemperature': {
-                                'name': 'LOWER_TEMPERATURE',
-                                'temperature': 16
-                              }
+                              'presetTemperature': {'name': 'LOWER_TEMPERATURE', 'temperature': 16}
                             }
                           },
                           {
@@ -259,10 +215,7 @@ void main() {
                             },
                             'description': {
                               'action': 'SET_TEMPERATURE',
-                              'presetTemperature': {
-                                'name': 'UPPER_TEMPERATURE',
-                                'temperature': 20
-                              }
+                              'presetTemperature': {'name': 'UPPER_TEMPERATURE', 'temperature': 20}
                             }
                           },
                           {
@@ -273,10 +226,7 @@ void main() {
                             },
                             'description': {
                               'action': 'SET_TEMPERATURE',
-                              'presetTemperature': {
-                                'name': 'LOWER_TEMPERATURE',
-                                'temperature': 16
-                              }
+                              'presetTemperature': {'name': 'LOWER_TEMPERATURE', 'temperature': 16}
                             }
                           },
                           {
@@ -287,10 +237,7 @@ void main() {
                             },
                             'description': {
                               'action': 'SET_TEMPERATURE',
-                              'presetTemperature': {
-                                'name': 'UPPER_TEMPERATURE',
-                                'temperature': 20
-                              }
+                              'presetTemperature': {'name': 'UPPER_TEMPERATURE', 'temperature': 20}
                             }
                           },
                           {
@@ -301,10 +248,7 @@ void main() {
                             },
                             'description': {
                               'action': 'SET_TEMPERATURE',
-                              'presetTemperature': {
-                                'name': 'LOWER_TEMPERATURE',
-                                'temperature': 16
-                              }
+                              'presetTemperature': {'name': 'LOWER_TEMPERATURE', 'temperature': 16}
                             }
                           },
                           {
@@ -315,10 +259,7 @@ void main() {
                             },
                             'description': {
                               'action': 'SET_TEMPERATURE',
-                              'presetTemperature': {
-                                'name': 'UPPER_TEMPERATURE',
-                                'temperature': 20
-                              }
+                              'presetTemperature': {'name': 'UPPER_TEMPERATURE', 'temperature': 20}
                             }
                           },
                           {
@@ -329,10 +270,7 @@ void main() {
                             },
                             'description': {
                               'action': 'SET_TEMPERATURE',
-                              'presetTemperature': {
-                                'name': 'LOWER_TEMPERATURE',
-                                'temperature': 16
-                              }
+                              'presetTemperature': {'name': 'LOWER_TEMPERATURE', 'temperature': 16}
                             }
                           },
                           {
@@ -343,10 +281,7 @@ void main() {
                             },
                             'description': {
                               'action': 'SET_TEMPERATURE',
-                              'presetTemperature': {
-                                'name': 'UPPER_TEMPERATURE',
-                                'temperature': 20
-                              }
+                              'presetTemperature': {'name': 'UPPER_TEMPERATURE', 'temperature': 20}
                             }
                           },
                           {
@@ -357,10 +292,7 @@ void main() {
                             },
                             'description': {
                               'action': 'SET_TEMPERATURE',
-                              'presetTemperature': {
-                                'name': 'LOWER_TEMPERATURE',
-                                'temperature': 16
-                              }
+                              'presetTemperature': {'name': 'LOWER_TEMPERATURE', 'temperature': 16}
                             }
                           },
                           {
@@ -371,10 +303,7 @@ void main() {
                             },
                             'description': {
                               'action': 'SET_TEMPERATURE',
-                              'presetTemperature': {
-                                'name': 'UPPER_TEMPERATURE',
-                                'temperature': 20
-                              }
+                              'presetTemperature': {'name': 'UPPER_TEMPERATURE', 'temperature': 20}
                             }
                           },
                           {
@@ -385,10 +314,7 @@ void main() {
                             },
                             'description': {
                               'action': 'SET_TEMPERATURE',
-                              'presetTemperature': {
-                                'name': 'LOWER_TEMPERATURE',
-                                'temperature': 16
-                              }
+                              'presetTemperature': {'name': 'LOWER_TEMPERATURE', 'temperature': 16}
                             }
                           },
                           {
@@ -399,10 +325,7 @@ void main() {
                             },
                             'description': {
                               'action': 'SET_TEMPERATURE',
-                              'presetTemperature': {
-                                'name': 'UPPER_TEMPERATURE',
-                                'temperature': 20
-                              }
+                              'presetTemperature': {'name': 'UPPER_TEMPERATURE', 'temperature': 20}
                             }
                           },
                           {
@@ -413,10 +336,7 @@ void main() {
                             },
                             'description': {
                               'action': 'SET_TEMPERATURE',
-                              'presetTemperature': {
-                                'name': 'LOWER_TEMPERATURE',
-                                'temperature': 16
-                              }
+                              'presetTemperature': {'name': 'LOWER_TEMPERATURE', 'temperature': 16}
                             }
                           },
                           {
@@ -427,10 +347,7 @@ void main() {
                             },
                             'description': {
                               'action': 'SET_TEMPERATURE',
-                              'presetTemperature': {
-                                'name': 'UPPER_TEMPERATURE',
-                                'temperature': 20
-                              }
+                              'presetTemperature': {'name': 'UPPER_TEMPERATURE', 'temperature': 20}
                             }
                           },
                           {
@@ -441,10 +358,7 @@ void main() {
                             },
                             'description': {
                               'action': 'SET_TEMPERATURE',
-                              'presetTemperature': {
-                                'name': 'LOWER_TEMPERATURE',
-                                'temperature': 16
-                              }
+                              'presetTemperature': {'name': 'LOWER_TEMPERATURE', 'temperature': 16}
                             }
                           },
                           {
@@ -455,10 +369,7 @@ void main() {
                             },
                             'description': {
                               'action': 'SET_TEMPERATURE',
-                              'presetTemperature': {
-                                'name': 'UPPER_TEMPERATURE',
-                                'temperature': 20
-                              }
+                              'presetTemperature': {'name': 'UPPER_TEMPERATURE', 'temperature': 20}
                             }
                           },
                           {
@@ -469,10 +380,7 @@ void main() {
                             },
                             'description': {
                               'action': 'SET_TEMPERATURE',
-                              'presetTemperature': {
-                                'name': 'LOWER_TEMPERATURE',
-                                'temperature': 16
-                              }
+                              'presetTemperature': {'name': 'LOWER_TEMPERATURE', 'temperature': 16}
                             }
                           },
                           {
@@ -483,10 +391,7 @@ void main() {
                             },
                             'description': {
                               'action': 'SET_TEMPERATURE',
-                              'presetTemperature': {
-                                'name': 'UPPER_TEMPERATURE',
-                                'temperature': 20
-                              }
+                              'presetTemperature': {'name': 'UPPER_TEMPERATURE', 'temperature': 20}
                             }
                           },
                           {
@@ -497,10 +402,7 @@ void main() {
                             },
                             'description': {
                               'action': 'SET_TEMPERATURE',
-                              'presetTemperature': {
-                                'name': 'LOWER_TEMPERATURE',
-                                'temperature': 16
-                              }
+                              'presetTemperature': {'name': 'LOWER_TEMPERATURE', 'temperature': 16}
                             }
                           },
                           {
@@ -511,10 +413,7 @@ void main() {
                             },
                             'description': {
                               'action': 'SET_TEMPERATURE',
-                              'presetTemperature': {
-                                'name': 'UPPER_TEMPERATURE',
-                                'temperature': 20
-                              }
+                              'presetTemperature': {'name': 'UPPER_TEMPERATURE', 'temperature': 20}
                             }
                           },
                           {
@@ -525,10 +424,7 @@ void main() {
                             },
                             'description': {
                               'action': 'SET_TEMPERATURE',
-                              'presetTemperature': {
-                                'name': 'LOWER_TEMPERATURE',
-                                'temperature': 16
-                              }
+                              'presetTemperature': {'name': 'LOWER_TEMPERATURE', 'temperature': 16}
                             }
                           },
                           {
@@ -539,10 +435,7 @@ void main() {
                             },
                             'description': {
                               'action': 'SET_TEMPERATURE',
-                              'presetTemperature': {
-                                'name': 'UPPER_TEMPERATURE',
-                                'temperature': 20
-                              }
+                              'presetTemperature': {'name': 'UPPER_TEMPERATURE', 'temperature': 20}
                             }
                           },
                           {
@@ -553,10 +446,7 @@ void main() {
                             },
                             'description': {
                               'action': 'SET_TEMPERATURE',
-                              'presetTemperature': {
-                                'name': 'LOWER_TEMPERATURE',
-                                'temperature': 16
-                              }
+                              'presetTemperature': {'name': 'LOWER_TEMPERATURE', 'temperature': 16}
                             }
                           }
                         ]
@@ -571,11 +461,7 @@ void main() {
                     'id': 16,
                     'displayName': 'Wohnzimmerheizung',
                     'skills': [
-                      {
-                        'offset': 0,
-                        'type': 'SmartHomeTemperatureSensor',
-                        'currentInCelsius': 19
-                      }
+                      {'offset': 0, 'type': 'SmartHomeTemperatureSensor', 'currentInCelsius': 19}
                     ],
                     'actorIdentificationNumber': '13979 0342035'
                   }
@@ -601,11 +487,7 @@ void main() {
                 'displayName': 'Wohnzimmerheizung'
               },
               'skills': [
-                {
-                  'offset': 0,
-                  'type': 'SmartHomeTemperatureSensor',
-                  'currentInCelsius': 19
-                }
+                {'offset': 0, 'type': 'SmartHomeTemperatureSensor', 'currentInCelsius': 19}
               ],
               'actorIdentificationNumber': '13979 0342035'
             },
@@ -628,20 +510,11 @@ void main() {
               'actorIdentificationNumber': '13979 0342035'
             }
           ],
-          'firmwareVersion': {
-            'search': false,
-            'current': '05.07',
-            'update': false,
-            'running': false
-          },
+          'firmwareVersion': {'search': false, 'current': '05.07', 'update': false, 'running': false},
           'model': 'FRITZ!DECT 302',
           'isEditable': true,
           'manufacturer': {'name': 'AVM'},
-          'pushService': {
-            'mailAddress': '',
-            'unitSettings': [],
-            'isEnabled': false
-          },
+          'pushService': {'mailAddress': '', 'unitSettings': [], 'isEnabled': false},
           'actorIdentificationNumber': '13979 0342035'
         },
         {
@@ -666,11 +539,7 @@ void main() {
                 'displayName': 'Kühlschrank'
               },
               'skills': [
-                {
-                  'offset': 0,
-                  'type': 'SmartHomeTemperatureSensor',
-                  'currentInCelsius': 24.5
-                }
+                {'offset': 0, 'type': 'SmartHomeTemperatureSensor', 'currentInCelsius': 24.5}
               ],
               'actorIdentificationNumber': '11630 0324586'
             },
@@ -775,11 +644,7 @@ void main() {
                       }
                     ]
                   },
-                  'standby': {
-                    'isEnabled': false,
-                    'seconds': 0,
-                    'powerInWatt': 0
-                  }
+                  'standby': {'isEnabled': false, 'seconds': 0, 'powerInWatt': 0}
                 },
                 {
                   'state': 'ON',
@@ -794,12 +659,7 @@ void main() {
               'actorIdentificationNumber': '11630 0324586'
             }
           ],
-          'firmwareVersion': {
-            'search': false,
-            'current': '04.25',
-            'update': false,
-            'running': false
-          },
+          'firmwareVersion': {'search': false, 'current': '04.25', 'update': false, 'running': false},
           'model': 'FRITZ!DECT 200',
           'isEditable': true,
           'manufacturer': {'name': 'AVM'},

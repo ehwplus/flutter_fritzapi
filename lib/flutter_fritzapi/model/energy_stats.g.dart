@@ -7,18 +7,17 @@ part of 'energy_stats.dart';
 // **************************************************************************
 
 EnergyStats _$EnergyStatsFromJson(Map<String, dynamic> json) => EnergyStats(
-      sumDay: json['sum_Day'] as int,
-      sumMonth: json['sum_Month'] as int,
-      sumYear: json['sum_Year'] as int,
-      deviceId: json['DeviceID'] as String,
-      deviceConnectState: json['DeviceConnectState'] as String,
-      deviceSwitchState: json['DeviceSwitchState'] as String,
-      tabType: $enumDecode(_$TabTypeEnumMap, json['tabType']),
-      currentDateInSec: json['CurrentDateInSec'] as String,
-      requestResult: json['RequestResult'] as bool,
-      energyStat:
-          EnergyStat.fromJson(json['EnergyStat'] as Map<String, dynamic>),
-    );
+  sumDay: (json['sum_Day'] as num).toInt(),
+  sumMonth: (json['sum_Month'] as num).toInt(),
+  sumYear: (json['sum_Year'] as num).toInt(),
+  deviceId: json['DeviceID'] as String,
+  deviceConnectState: json['DeviceConnectState'] as String,
+  deviceSwitchState: json['DeviceSwitchState'] as String,
+  tabType: $enumDecode(_$TabTypeEnumMap, json['tabType']),
+  currentDateInSec: json['CurrentDateInSec'] as String,
+  requestResult: json['RequestResult'] as bool,
+  energyStat: EnergyStat.fromJson(json['EnergyStat'] as Map<String, dynamic>),
+);
 
 Map<String, dynamic> _$EnergyStatsToJson(EnergyStats instance) =>
     <String, dynamic>{
@@ -43,11 +42,13 @@ const _$TabTypeEnumMap = {
 };
 
 EnergyStat _$EnergyStatFromJson(Map<String, dynamic> json) => EnergyStat(
-      level: json['ebene'] as int,
-      amount: json['anzahl'] as int,
-      timesType: json['times_type'] as int,
-      values: (json['values'] as List<dynamic>).map((e) => e as int).toList(),
-    );
+  level: (json['ebene'] as num).toInt(),
+  amount: (json['anzahl'] as num).toInt(),
+  timesType: (json['times_type'] as num).toInt(),
+  values: (json['values'] as List<dynamic>)
+      .map((e) => (e as num).toInt())
+      .toList(),
+);
 
 Map<String, dynamic> _$EnergyStatToJson(EnergyStat instance) =>
     <String, dynamic>{

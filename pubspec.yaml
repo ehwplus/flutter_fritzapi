@@ -1,17 +1,16 @@
 name: flutter_fritzapi
 description: API for Fritz!Box, Fritz!DECT
-version: 0.0.2
+version: 0.1.0
 homepage: https://github.com/ehwplus/flutter_fritzapi
 
 environment:
-  sdk: '>=2.18.4 <4.0.0'
-  flutter: ">=1.17.0"
+  sdk: '>=3.8.0 <4.0.0'
 
 dependencies:
   crypto: '>=3.0.2'
   flutter:
     sdk: flutter
-  json_annotation: '>=4.0.1'
+  json_annotation: '>=4.9.0'
 
 dev_dependencies:
   build_runner: '>=2.0.4'

@@ -3,12 +3,11 @@ import 'package:crypto/crypto.dart';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_fritzapi/flutter_fritzapi.dart';
-import 'package:flutter_fritzapi/flutter_fritzapi/xml_select.dart';
+import 'package:flutter_fritzapi/flutter_fritzapi/utils/xml_select.dart';
 
-import 'encode_utf16le.dart';
+import 'utils/encode_utf16le.dart';
 
 abstract class FritzApiClient {
-
   FritzApiClient({
     this.baseUrl = 'http://fritz.box',
   });
@@ -104,7 +103,8 @@ abstract class FritzApiClient {
     final response = (await post(url, body: {
       'response': challengeResponse.toString(),
       'username': username ?? user!,
-    })).body;
+    }))
+        .body;
     final sessionId = extractValueOfXmlTag(xml: response, xmlTag: 'SID');
     if (sessionId != '0000000000000000') {
       this.sessionId = sessionId;
@@ -140,7 +140,8 @@ abstract class FritzApiClient {
   }) async {
     assert(sessionId != null && sessionId!.isNotEmpty, 'SessionId must not be null or empty');
 
-    final url = Uri.parse('$baseUrl/net/home_auto_query.lua?sid=${sessionId!}&command=${command.name}&id=$deviceId&xhr=1');
+    final url =
+        Uri.parse('$baseUrl/net/home_auto_query.lua?sid=${sessionId!}&command=${command.name}&id=$deviceId&xhr=1');
     final Map<String, String> headers = {};
     final response = await get(url, headers: headers);
 
@@ -155,11 +156,9 @@ abstract class FritzApiClient {
   Future<FritzApiResponse> get(Uri url, {Map<String, String>? headers});
 
   Future<FritzApiResponse> post(Uri url, {Map<String, String>? headers, required Map<String, String> body});
-
 }
 
 class FritzApiResponse {
-
   const FritzApiResponse({
     required this.statusCode,
     required this.body,
@@ -168,7 +167,6 @@ class FritzApiResponse {
   final String body;
 
   final int statusCode;
-
 }
 
 enum HomeAutoQueryCommand {
