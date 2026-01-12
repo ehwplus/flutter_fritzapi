@@ -26,6 +26,9 @@ Get data from Fritz!Box, FRITZ!DECT inside Flutter applications
 * Fetch session id for FRITZ!Box API access
 * Fetch smart home devices connected to Fritz!Box
 * Get energy consumption in Wh of FRITZ!DECT 200
+* List connected Wi-Fi clients
+* Read WAN online counters (bytes sent/received)
+* Temperature, humidity and power readings for devices that expose them
 
 ## Usage
 

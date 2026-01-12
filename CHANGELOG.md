@@ -1,4 +1,8 @@
-## 0.1.0
+# 0.1.0
+
+- Add APIs for WAN online counters and Wi-Fi clients
+- Parse temperature, humidity, and power from smart home devices and handle unknown categories
+- Expose new models for network counters and Wi-Fi clients
 
 - Support more device types: LAMP and CONTROL
 
