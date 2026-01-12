@@ -110,7 +110,7 @@ abstract class FritzApiClient {
   }
 
   /// Reads the current WAN counters (bytes sent/received) from the FRITZ!Box UI.
-  Future<OnlineCounters?> getOnlineCounters() async {
+  Future<NetworkCounters?> getOnlineCounters() async {
     assert(sessionId != null && sessionId!.isNotEmpty, 'SessionId must not be null or empty');
 
     final List<Uri> candidates = <Uri>[
@@ -126,7 +126,7 @@ abstract class FritzApiClient {
         if (decoded == null) {
           continue;
         }
-        final OnlineCounters? counters = extractNetworkCounters(decoded);
+        final NetworkCounters? counters = extractNetworkCounters(decoded);
         if (counters != null) {
           return counters;
         }
@@ -209,7 +209,7 @@ Map<String, dynamic>? _tryDecodeJsonMap(String body) {
 }
 
 /// Extracts counters for bytes sent/received from the FRITZ!Box JSON response.
-OnlineCounters? extractNetworkCounters(Map<String, dynamic> json) {
+NetworkCounters? extractNetworkCounters(Map<String, dynamic> json) {
   final Map<String, int> totals = <String, int>{};
 
   void walk(dynamic value) {
@@ -261,7 +261,7 @@ OnlineCounters? extractNetworkCounters(Map<String, dynamic> json) {
     return null;
   }
 
-  return OnlineCounters(totalBytes: total, bytesSent: sent, bytesReceived: received, raw: json);
+  return NetworkCounters(totalBytes: total, bytesSent: sent, bytesReceived: received, raw: json);
 }
 
 /// Parses clients from the `/data.lua?page=netDev` response structure.

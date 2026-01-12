@@ -1,6 +1,6 @@
 /// Aggregated WAN counters as reported by the FRITZ!Box UI.
-class OnlineCounters {
-  const OnlineCounters({
+class NetworkCounters {
+  const NetworkCounters({
     required this.totalBytes,
     required this.bytesSent,
     required this.bytesReceived,

@@ -41,7 +41,7 @@ void main() {
         'totals': <String, dynamic>{'sum_bytes': '5000'},
       };
 
-      final OnlineCounters? counters = extractNetworkCounters(payload);
+      final NetworkCounters? counters = extractNetworkCounters(payload);
 
       expect(counters, isNotNull);
       expect(counters!.bytesSent, 1200);
@@ -50,7 +50,7 @@ void main() {
     });
 
     test('returns null when no counters are present', () {
-      final OnlineCounters? counters = extractNetworkCounters(<String, dynamic>{'foo': 'bar'});
+      final NetworkCounters? counters = extractNetworkCounters(<String, dynamic>{'foo': 'bar'});
 
       expect(counters, isNull);
     });
