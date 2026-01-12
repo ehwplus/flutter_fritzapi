@@ -210,7 +210,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
   List<_DataType> _capabilitiesForDevice(Device? device, {required bool isRouter}) {
     if (isRouter) {
-      return const <_DataType>[_DataType.onlineCounter, _DataType.wifiClients];
+      return const <_DataType>[/*_DataType.onlineCounter, */ _DataType.wifiClients];
     }
     if (device == null) {
       return const <_DataType>[];
@@ -386,7 +386,7 @@ class _MyHomePageState extends State<MyHomePage> {
       throw StateError(l10n.loginRequired);
     }
     switch (type) {
-      case _DataType.onlineCounter:
+      /*case _DataType.onlineCounter:
         final NetworkCounters? counters = await client.getOnlineCounters();
         if (counters == null) {
           throw StateError(l10n.noOnlineCounters);
@@ -398,7 +398,7 @@ class _MyHomePageState extends State<MyHomePage> {
             _formatBytes(counters.bytesReceived),
           ),
           raw: _stringifyRaw(counters.raw),
-        );
+        );*/
       case _DataType.temperature:
         if (device == null) {
           throw StateError(l10n.noDeviceSelected);
@@ -884,7 +884,7 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 }
 
-enum _DataType { temperature, humidity, power, onlineCounter, wifiClients }
+enum _DataType { temperature, humidity, power, wifiClients } // onlineCounter
 
 extension on _DataType {
   String label(AppLocalizations l10n) {
@@ -895,8 +895,8 @@ extension on _DataType {
         return l10n.humidityLabel;
       case _DataType.power:
         return l10n.powerLabel;
-      case _DataType.onlineCounter:
-        return l10n.onlineCounterLabel;
+      // case _DataType.onlineCounter:
+      //   return l10n.onlineCounterLabel;
       case _DataType.wifiClients:
         return l10n.wifiClientsLabel;
     }
@@ -910,8 +910,8 @@ extension on _DataType {
         return Icons.water_drop;
       case _DataType.power:
         return Icons.bolt;
-      case _DataType.onlineCounter:
-        return Icons.network_check;
+      // case _DataType.onlineCounter:
+      //   return Icons.network_check;
       case _DataType.wifiClients:
         return Icons.wifi;
     }
