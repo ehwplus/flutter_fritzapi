@@ -1,0 +1,118 @@
+{
+  "@@locale": "de",
+  "appTitle": "FRITZ!API Demo App",
+  "detectTitle": "FRITZ!Box erkennen",
+  "baseUrlLabel": "Base URL",
+  "baseUrlHelper": "Standard: http://fritz.box",
+  "detectFound": "FRITZ!Box gefunden.",
+  "detectSearching": "Suche nach FRITZ!Box...",
+  "detectSearchingShort": "Suche...",
+  "detectRetry": "Erneut suchen",
+  "detectErrorWithUrl": "Keine FRITZ!Box unter {baseUrl} gefunden.",
+  "@detectErrorWithUrl": {
+    "placeholders": {
+      "baseUrl": {}
+    }
+  },
+  "detectErrorGeneric": "Verbindungsprüfung fehlgeschlagen: {error}",
+  "@detectErrorGeneric": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "connectedStatus": "Verbunden mit {baseUrl}",
+  "@connectedStatus": {
+    "placeholders": {
+      "baseUrl": {}
+    }
+  },
+  "connectedLoggedInTitle": "Verbunden und angemeldet",
+  "sidLabel": "SID: {sid}",
+  "@sidLabel": {
+    "placeholders": {
+      "sid": {}
+    }
+  },
+  "logoutButton": "Logout",
+  "loginTitle": "Anmelden",
+  "passwordLabel": "Passwort",
+  "usernameLabel": "Benutzername (optional)",
+  "loginButton": "Login",
+  "loginButtonBusy": "Anmelden...",
+  "loginErrorNoConnection": "Bitte zuerst Verbindung prüfen.",
+  "loginErrorEmptyPassword": "Passwort darf nicht leer sein.",
+  "loginErrorInvalidCreds": "Login fehlgeschlagen. Bitte Benutzername/Passwort prüfen.",
+  "loginErrorGeneric": "Login fehlgeschlagen: {error}",
+  "@loginErrorGeneric": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "devicesTitle": "Geräte & Daten",
+  "routerLabel": "Router",
+  "routerDeviceTitle": "FRITZ!Box",
+  "noCapabilities": "Keine Daten-Typen verfügbar.",
+  "temperatureLabel": "Temperatur",
+  "humidityLabel": "Luftfeuchtigkeit",
+  "powerLabel": "Leistung",
+  "onlineCounterLabel": "Online-Counter",
+  "loadingData": "Lade Daten...",
+  "errorWithMessage": "Fehler: {message}",
+  "@errorWithMessage": {
+    "placeholders": {
+      "message": {}
+    }
+  },
+  "closeButton": "Schließen",
+  "noData": "Keine Daten",
+  "historyTitle": "Historie",
+  "historyEnergyMissing": "Keine historischen Energiedaten verfügbar.",
+  "historyEnergy": "Heute: {dayWh} Wh\nMonat: {monthWh} Wh\nJahr: {yearWh} Wh",
+  "@historyEnergy": {
+    "placeholders": {
+      "dayWh": {},
+      "monthWh": {},
+      "yearWh": {}
+    }
+  },
+  "currentPower": "Leistung: {value} W",
+  "@currentPower": {
+    "placeholders": {
+      "value": {}
+    }
+  },
+  "currentTemperature": "Temperatur: {value} °C",
+  "@currentTemperature": {
+    "placeholders": {
+      "value": {}
+    }
+  },
+  "currentHumidity": "Luftfeuchtigkeit: {value} %",
+  "@currentHumidity": {
+    "placeholders": {
+      "value": {}
+    }
+  },
+  "onlineCounters": "Gesamt: {total}\nGesendet: {sent}\nEmpfangen: {received}",
+  "@onlineCounters": {
+    "placeholders": {
+      "total": {},
+      "sent": {},
+      "received": {}
+    }
+  },
+  "byteUnits": "B,KB,MB,GB,TB",
+  "noOnlineCounters": "Keine Online-Counter verfügbar.",
+  "noDeviceSelected": "Kein Gerät gewählt.",
+  "noTemperature": "Keine Temperatur verfügbar.",
+  "noHumidity": "Keine Luftfeuchtigkeit verfügbar.",
+  "noPower": "Keine Leistung verfügbar.",
+  "loginRequired": "Bitte zuerst anmelden.",
+  "dataSheetTitle": "{deviceName} - {dataType}",
+  "@dataSheetTitle": {
+    "placeholders": {
+      "deviceName": {},
+      "dataType": {}
+    }
+  }
+}

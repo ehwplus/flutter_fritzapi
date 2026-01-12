@@ -1,4 +1,6 @@
+import 'package:example/l10n/generated/app_localizations.dart';
 import 'package:example/custom_fritz_api_client.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_fritzapi/flutter_fritzapi.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -12,19 +14,19 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const title = 'FRITZ!API Demo App';
     return MaterialApp(
-      title: title,
+      locale: const Locale('de'),
+      onGenerateTitle: (BuildContext context) => AppLocalizations.of(context)!.appTitle,
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
       theme: ThemeData(primarySwatch: Colors.blue),
-      home: const MyHomePage(title: title),
+      home: const MyHomePage(),
     );
   }
 }
 
 class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
-
-  final String title;
+  const MyHomePage({super.key});
 
   @override
   State<MyHomePage> createState() => _MyHomePageState();
@@ -33,9 +35,7 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   CustomFritzApiClient? _fritzApiClient;
 
-  final TextEditingController _baseUrlController = TextEditingController(
-    text: 'http://fritz.box',
-  );
+  final TextEditingController _baseUrlController = TextEditingController(text: 'http://fritz.box');
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final FocusNode _usernameFocus = FocusNode();
@@ -50,6 +50,8 @@ class _MyHomePageState extends State<MyHomePage> {
   String? _sessionId;
   List<Device> _devices = <Device>[];
   final Map<String, _DataType> _selectedCapabilities = <String, _DataType>{};
+
+  AppLocalizations get l10n => AppLocalizations.of(context)!;
 
   @override
   void initState() {
@@ -79,7 +81,11 @@ class _MyHomePageState extends State<MyHomePage> {
       _passwordController.text = password;
     });
     _rebuildClient();
-    await _autoDetect();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _autoDetect();
+      }
+    });
   }
 
   void _rebuildClient() {
@@ -89,42 +95,6 @@ class _MyHomePageState extends State<MyHomePage> {
       _devices = <Device>[];
       _connected = false;
     });
-  }
-
-  Future<void> _showBaseUrlDialog() async {
-    final TextEditingController controller = TextEditingController(
-      text: _baseUrlController.text,
-    );
-    final String? result = await showDialog<String>(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Base URL anpassen'),
-          content: TextField(
-            controller: controller,
-            decoration: const InputDecoration(
-              helperText: 'z.B. http://fritz.box',
-            ),
-          ),
-          actions: <Widget>[
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Abbrechen'),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(context, controller.text.trim()),
-              child: const Text('Speichern'),
-            ),
-          ],
-        );
-      },
-    );
-    if (result != null) {
-      _baseUrlController.text = result.isEmpty ? 'http://fritz.box' : result;
-      await _persistPrefs();
-      _rebuildClient();
-      _autoDetect();
-    }
   }
 
   String get _currentBaseUrl {
@@ -149,16 +119,14 @@ class _MyHomePageState extends State<MyHomePage> {
       }
       setState(() {
         _connected = isConnected;
-        _detectError = isConnected
-            ? null
-            : 'Keine FRITZ!Box unter $_currentBaseUrl gefunden.';
+        _detectError = isConnected ? null : l10n.detectErrorWithUrl(_currentBaseUrl);
       });
     } catch (error) {
       if (!mounted) {
         return;
       }
       setState(() {
-        _detectError = 'Verbindungsprüfung fehlgeschlagen: $error';
+        _detectError = l10n.detectErrorGeneric('$error');
         _connected = false;
       });
     } finally {
@@ -174,13 +142,13 @@ class _MyHomePageState extends State<MyHomePage> {
     final CustomFritzApiClient? client = _fritzApiClient;
     if (client == null || !_connected) {
       setState(() {
-        _loginError = 'Bitte zuerst Verbindung prüfen.';
+        _loginError = l10n.loginErrorNoConnection;
       });
       return;
     }
     if (_passwordController.text.isEmpty) {
       setState(() {
-        _loginError = 'Passwort darf nicht leer sein.';
+        _loginError = l10n.loginErrorEmptyPassword;
       });
       return;
     }
@@ -191,9 +159,7 @@ class _MyHomePageState extends State<MyHomePage> {
     });
     try {
       final String? sid = await client.getSessionId(
-        username: _usernameController.text.isEmpty
-            ? null
-            : _usernameController.text,
+        username: _usernameController.text.isEmpty ? null : _usernameController.text,
         password: _passwordController.text,
       );
       if (!mounted) {
@@ -201,8 +167,7 @@ class _MyHomePageState extends State<MyHomePage> {
       }
       if (sid == null || sid.isEmpty) {
         setState(() {
-          _loginError =
-              'Login fehlgeschlagen. Bitte Benutzername/Passwort prüfen.';
+          _loginError = l10n.loginErrorInvalidCreds;
           _sessionId = null;
         });
         return;
@@ -219,7 +184,7 @@ class _MyHomePageState extends State<MyHomePage> {
         return;
       }
       setState(() {
-        _loginError = 'Login fehlgeschlagen: $error';
+        _loginError = l10n.loginErrorGeneric('$error');
         _sessionId = null;
       });
     } finally {
@@ -246,10 +211,7 @@ class _MyHomePageState extends State<MyHomePage> {
     await _prefs?.setString('password', _passwordController.text);
   }
 
-  List<_DataType> _capabilitiesForDevice(
-    Device? device, {
-    required bool isRouter,
-  }) {
+  List<_DataType> _capabilitiesForDevice(Device? device, {required bool isRouter}) {
     if (isRouter) {
       return const <_DataType>[_DataType.onlineCounter];
     }
@@ -279,7 +241,7 @@ class _MyHomePageState extends State<MyHomePage> {
       _selectedCapabilities[deviceKey] = type;
     });
     await _showDataSheet(
-      deviceName: device?.displayName ?? 'FRITZ!Box',
+      deviceName: device?.displayName ?? l10n.routerDeviceTitle,
       device: device,
       type: type,
       isRouter: isRouter,
@@ -304,22 +266,22 @@ class _MyHomePageState extends State<MyHomePage> {
       builder: (BuildContext context) {
         return Padding(
           padding: const EdgeInsets.all(16),
-          child: FutureBuilder<String>(
+          child: FutureBuilder<_DataPayload>(
             future: _loadData(device: device, type: type, isRouter: isRouter),
-            builder: (BuildContext context, AsyncSnapshot<String> snapshot) {
+            builder: (BuildContext context, AsyncSnapshot<_DataPayload> snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
                     Text(
-                      '$deviceName – ${type.label}',
+                      l10n.dataSheetTitle(deviceName, type.label(l10n)),
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
                     const SizedBox(height: 16),
                     const LinearProgressIndicator(),
                     const SizedBox(height: 8),
-                    const Text('Lade Daten...'),
+                    Text(l10n.loadingData),
                   ],
                 );
               }
@@ -329,21 +291,15 @@ class _MyHomePageState extends State<MyHomePage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
                     Text(
-                      '$deviceName – ${type.label}',
+                      l10n.dataSheetTitle(deviceName, type.label(l10n)),
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
                     const SizedBox(height: 16),
-                    Text(
-                      'Fehler: ${snapshot.error}',
-                      style: const TextStyle(color: Colors.red),
-                    ),
+                    Text(l10n.errorWithMessage('${snapshot.error}'), style: const TextStyle(color: Colors.red)),
                     const SizedBox(height: 12),
                     Align(
                       alignment: Alignment.centerRight,
-                      child: TextButton(
-                        onPressed: () => Navigator.pop(context),
-                        child: const Text('Schließen'),
-                      ),
+                      child: TextButton(onPressed: () => Navigator.pop(context), child: Text(l10n.closeButton)),
                     ),
                   ],
                 );
@@ -353,18 +309,21 @@ class _MyHomePageState extends State<MyHomePage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
                   Text(
-                    '$deviceName – ${type.label}',
+                    l10n.dataSheetTitle(deviceName, type.label(l10n)),
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                   const SizedBox(height: 16),
-                  Text(snapshot.data ?? 'Keine Daten'),
+                  Text(snapshot.data?.current ?? l10n.noData),
+                  if (snapshot.data?.history != null) ...<Widget>[
+                    const SizedBox(height: 12),
+                    Text(l10n.historyTitle, style: Theme.of(context).textTheme.titleSmall),
+                    const SizedBox(height: 4),
+                    Text(snapshot.data!.history!),
+                  ],
                   const SizedBox(height: 12),
                   Align(
                     alignment: Alignment.centerRight,
-                    child: TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text('Schließen'),
-                    ),
+                    child: TextButton(onPressed: () => Navigator.pop(context), child: Text(l10n.closeButton)),
                   ),
                 ],
               );
@@ -389,57 +348,66 @@ class _MyHomePageState extends State<MyHomePage> {
     return null;
   }
 
-  Future<String> _loadData({
-    Device? device,
-    required _DataType type,
-    required bool isRouter,
-  }) async {
+  Future<_DataPayload> _loadData({Device? device, required _DataType type, required bool isRouter}) async {
     final CustomFritzApiClient? client = _fritzApiClient;
     if (client == null || _sessionId == null) {
-      throw StateError('Bitte zuerst anmelden.');
+      throw StateError(l10n.loginRequired);
     }
     switch (type) {
       case _DataType.onlineCounter:
         final NetworkCounters? counters = await client.getOnlineCounters();
         if (counters == null) {
-          throw StateError('Keine Online-Counter verfügbar.');
+          throw StateError(l10n.noOnlineCounters);
         }
-        return 'Gesamt: ${_formatBytes(counters.totalBytes)}\nGesendet: ${_formatBytes(counters.bytesSent)}\nEmpfangen: ${_formatBytes(counters.bytesReceived)}';
+        return _DataPayload(
+          current: l10n.onlineCounters(
+            _formatBytes(counters.totalBytes),
+            _formatBytes(counters.bytesSent),
+            _formatBytes(counters.bytesReceived),
+          ),
+        );
       case _DataType.temperature:
         if (device == null) {
-          throw StateError('Kein Gerät gewählt.');
+          throw StateError(l10n.noDeviceSelected);
         }
         final Device effective = (await _fetchDeviceById(device.id)) ?? device;
         final double? value = effective.temperatureCelsius;
         if (value == null) {
-          throw StateError('Keine Temperatur verfügbar.');
+          throw StateError(l10n.noTemperature);
         }
-        return 'Temperatur: ${value.toStringAsFixed(1)} °C';
+        return _DataPayload(current: l10n.currentTemperature(value.toStringAsFixed(1)));
       case _DataType.humidity:
         if (device == null) {
-          throw StateError('Kein Gerät gewählt.');
+          throw StateError(l10n.noDeviceSelected);
         }
         final Device effective = (await _fetchDeviceById(device.id)) ?? device;
         final double? value = effective.humidityPercent;
         if (value == null) {
-          throw StateError('Keine Luftfeuchtigkeit verfügbar.');
+          throw StateError(l10n.noHumidity);
         }
-        return 'Luftfeuchtigkeit: ${value.toStringAsFixed(1)} %';
+        return _DataPayload(current: l10n.currentHumidity(value.toStringAsFixed(1)));
       case _DataType.power:
         if (device == null) {
-          throw StateError('Kein Gerät gewählt.');
+          throw StateError(l10n.noDeviceSelected);
         }
         final Device effective = (await _fetchDeviceById(device.id)) ?? device;
         final double? value = effective.powerWatt;
         if (value == null) {
-          throw StateError('Keine Leistung verfügbar.');
+          throw StateError(l10n.noPower);
         }
-        return 'Leistung: ${value.toStringAsFixed(1)} W';
+        final EnergyStats? stats = await client.getEnergyStats(
+          command: HomeAutoQueryCommand.EnergyStats_24h,
+          deviceId: effective.id,
+        );
+        final String history = stats == null
+            ? l10n.historyEnergyMissing
+            : l10n.historyEnergy(stats.sumDay.toString(), stats.sumMonth.toString(), stats.sumYear.toString());
+        return _DataPayload(current: l10n.currentPower(value.toStringAsFixed(1)), history: history);
     }
   }
 
   String _formatBytes(int bytes) {
-    const List<String> units = <String>['B', 'KB', 'MB', 'GB', 'TB'];
+    final List<String> units = l10n.byteUnits.split(',');
     double value = bytes.toDouble();
     int unitIndex = 0;
     while (value >= 1024 && unitIndex < units.length - 1) {
@@ -454,27 +422,7 @@ class _MyHomePageState extends State<MyHomePage> {
       return Card(
         child: ListTile(
           leading: const Icon(Icons.check_circle, color: Colors.green),
-          title: Text('Verbunden mit $_currentBaseUrl'),
-          trailing: Wrap(
-            spacing: 8,
-            children: <Widget>[
-              TextButton(
-                onPressed: () => _showBaseUrlDialog(),
-                child: const Text('Base URL ändern'),
-              ),
-              TextButton(
-                onPressed: _detecting
-                    ? null
-                    : () {
-                        _rebuildClient();
-                        _autoDetect();
-                      },
-                child: _detecting
-                    ? const Text('Suche...')
-                    : const Text('Neu suchen'),
-              ),
-            ],
-          ),
+          title: Text(l10n.connectedStatus(_currentBaseUrl)),
         ),
       );
     }
@@ -484,17 +432,11 @@ class _MyHomePageState extends State<MyHomePage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            Text(
-              '1. FRITZ!Box erkennen',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
+            Text(l10n.detectTitle, style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 8),
             TextField(
               controller: _baseUrlController,
-              decoration: const InputDecoration(
-                labelText: 'Base URL',
-                helperText: 'Standard: http://fritz.box',
-              ),
+              decoration: InputDecoration(labelText: l10n.baseUrlLabel, helperText: l10n.baseUrlHelper),
               onChanged: (_) => _persistPrefs(),
             ),
             const SizedBox(height: 12),
@@ -505,13 +447,7 @@ class _MyHomePageState extends State<MyHomePage> {
                   color: _connected ? Colors.green : Colors.blueGrey,
                 ),
                 const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    _connected
-                        ? 'FRITZ!Box gefunden.'
-                        : 'Suche nach FRITZ!Box...',
-                  ),
-                ),
+                Expanded(child: Text(_connected ? l10n.detectFound : l10n.detectSearching)),
                 TextButton(
                   onPressed: _detecting
                       ? null
@@ -519,9 +455,7 @@ class _MyHomePageState extends State<MyHomePage> {
                           _rebuildClient();
                           _autoDetect();
                         },
-                  child: _detecting
-                      ? const Text('Suche...')
-                      : const Text('Retry'),
+                  child: _detecting ? Text(l10n.detectSearchingShort) : Text(l10n.detectRetry),
                 ),
               ],
             ),
@@ -537,16 +471,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
   Widget _buildCredentialsCard() {
     if (_sessionId != null) {
-      return Card(
-        child: ListTile(
-          leading: const Icon(Icons.lock_open, color: Colors.green),
-          title: const Text('Angemeldet'),
-          subtitle: Text(
-            'SID: ${_sessionId!.substring(0, _sessionId!.length > 6 ? 6 : _sessionId!.length)}...',
-          ),
-          trailing: TextButton(onPressed: _logout, child: const Text('Logout')),
-        ),
-      );
+      return const SizedBox.shrink();
     }
     return Card(
       child: Padding(
@@ -554,12 +479,12 @@ class _MyHomePageState extends State<MyHomePage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            Text('2. Anmelden', style: Theme.of(context).textTheme.titleMedium),
+            Text(l10n.loginTitle, style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 8),
             TextField(
               controller: _passwordController,
               enabled: _connected,
-              decoration: const InputDecoration(labelText: 'Passwort'),
+              decoration: InputDecoration(labelText: l10n.passwordLabel),
               obscureText: true,
               focusNode: _passwordFocus,
               onChanged: (_) => _persistPrefs(),
@@ -568,9 +493,7 @@ class _MyHomePageState extends State<MyHomePage> {
             TextField(
               controller: _usernameController,
               enabled: _connected,
-              decoration: const InputDecoration(
-                labelText: 'Benutzername (optional)',
-              ),
+              decoration: InputDecoration(labelText: l10n.usernameLabel),
               focusNode: _usernameFocus,
               onChanged: (_) => _persistPrefs(),
             ),
@@ -579,16 +502,8 @@ class _MyHomePageState extends State<MyHomePage> {
               children: <Widget>[
                 ElevatedButton(
                   onPressed: !_connected || _loggingIn ? null : _login,
-                  child: _loggingIn
-                      ? const Text('Anmelden...')
-                      : const Text('Login'),
+                  child: _loggingIn ? Text(l10n.loginButtonBusy) : Text(l10n.loginButton),
                 ),
-                const SizedBox(width: 12),
-                if (_sessionId != null)
-                  const Text(
-                    'Angemeldet',
-                    style: TextStyle(color: Colors.green),
-                  ),
               ],
             ),
             if (_loginError != null) ...<Widget>[
@@ -601,6 +516,21 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
+  Widget _buildLoggedInCard() {
+    final String sid = _sessionId ?? '';
+    final String sidShort = sid.isNotEmpty && sid.length > 6 ? '${sid.substring(0, 6)}...' : sid;
+    return Card(
+      child: ListTile(
+        leading: const Icon(Icons.lock_open, color: Colors.green),
+        title: Text(l10n.connectedLoggedInTitle),
+        subtitle: Text(
+          l10n.connectedStatus(_currentBaseUrl) + (sidShort.isNotEmpty ? '\n${l10n.sidLabel(sidShort)}' : ''),
+        ),
+        trailing: TextButton(onPressed: _logout, child: Text(l10n.logoutButton)),
+      ),
+    );
+  }
+
   Widget _buildDeviceList() {
     if (_sessionId == null) {
       return const SizedBox.shrink();
@@ -609,10 +539,11 @@ class _MyHomePageState extends State<MyHomePage> {
     deviceCards.add(
       _buildDeviceCard(
         deviceKey: 'router',
-        title: 'FRITZ!Box',
+        title: l10n.routerDeviceTitle,
         subtitle: _currentBaseUrl,
         device: null,
         isRouter: true,
+        l10n: l10n,
       ),
     );
     for (final Device device in _devices) {
@@ -623,16 +554,14 @@ class _MyHomePageState extends State<MyHomePage> {
           subtitle: device.model,
           device: device,
           isRouter: false,
+          l10n: l10n,
         ),
       );
     }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        Text(
-          '3. Geräte & Daten',
-          style: Theme.of(context).textTheme.titleMedium,
-        ),
+        Text(l10n.devicesTitle, style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 8),
         ...deviceCards,
       ],
@@ -645,11 +574,9 @@ class _MyHomePageState extends State<MyHomePage> {
     required String subtitle,
     required Device? device,
     required bool isRouter,
+    required AppLocalizations l10n,
   }) {
-    final List<_DataType> caps = _capabilitiesForDevice(
-      device,
-      isRouter: isRouter,
-    );
+    final List<_DataType> caps = _capabilitiesForDevice(device, isRouter: isRouter);
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(12),
@@ -662,12 +589,12 @@ class _MyHomePageState extends State<MyHomePage> {
               title: Text(title),
               subtitle: Text(subtitle),
               trailing: Text(
-                isRouter ? 'Router' : device?.category.name ?? '',
+                isRouter ? l10n.routerLabel : device?.category.name ?? '',
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ),
             if (caps.isEmpty)
-              const Text('Keine Daten-Typen verfügbar.')
+              Text(l10n.noCapabilities)
             else
               Wrap(
                 spacing: 8,
@@ -675,15 +602,11 @@ class _MyHomePageState extends State<MyHomePage> {
                 children: caps
                     .map(
                       (_DataType type) => ChoiceChip(
-                        label: Text(type.label),
+                        label: Text(type.label(l10n)),
                         avatar: Icon(type.icon, size: 18),
                         selected: _selectedCapabilities[deviceKey] == type,
-                        onSelected: (_) => _onCapabilitySelected(
-                          deviceKey: deviceKey,
-                          type: type,
-                          device: device,
-                          isRouter: isRouter,
-                        ),
+                        onSelected: (_) =>
+                            _onCapabilitySelected(deviceKey: deviceKey, type: type, device: device, isRouter: isRouter),
                       ),
                     )
                     .toList(),
@@ -696,20 +619,24 @@ class _MyHomePageState extends State<MyHomePage> {
 
   @override
   Widget build(BuildContext context) {
+    final AppLocalizations loc = l10n;
+    final List<Widget> sections = <Widget>[];
+    if (_sessionId != null) {
+      sections.add(_buildLoggedInCard());
+    } else {
+      sections
+        ..add(_buildConnectionCard())
+        ..add(_buildCredentialsCard());
+    }
+    sections.add(const SizedBox(height: 12));
+    sections.add(_buildDeviceList());
+
     return Scaffold(
-      appBar: AppBar(title: Text(widget.title)),
+      appBar: AppBar(title: Text(loc.appTitle)),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              _buildConnectionCard(),
-              _buildCredentialsCard(),
-              const SizedBox(height: 12),
-              _buildDeviceList(),
-            ],
-          ),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: sections),
         ),
       ),
     );
@@ -719,16 +646,16 @@ class _MyHomePageState extends State<MyHomePage> {
 enum _DataType { temperature, humidity, power, onlineCounter }
 
 extension on _DataType {
-  String get label {
+  String label(AppLocalizations l10n) {
     switch (this) {
       case _DataType.temperature:
-        return 'Temperature';
+        return l10n.temperatureLabel;
       case _DataType.humidity:
-        return 'Humidity';
+        return l10n.humidityLabel;
       case _DataType.power:
-        return 'Power';
+        return l10n.powerLabel;
       case _DataType.onlineCounter:
-        return 'Online counter';
+        return l10n.onlineCounterLabel;
     }
   }
 
@@ -744,4 +671,11 @@ extension on _DataType {
         return Icons.network_check;
     }
   }
+}
+
+class _DataPayload {
+  const _DataPayload({required this.current, this.history});
+
+  final String current;
+  final String? history;
 }
