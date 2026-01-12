@@ -295,4 +295,13 @@ class AppLocalizationsDe extends AppLocalizations {
   String deviceIdCopied(Object id) {
     return 'Device-ID $id kopiert';
   }
+
+  @override
+  String get rawTitle => 'RAW';
+
+  @override
+  String get copyRawTooltip => 'Rohdaten kopieren';
+
+  @override
+  String get rawCopied => 'Rohdaten kopiert';
 }

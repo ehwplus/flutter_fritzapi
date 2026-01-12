@@ -579,6 +579,24 @@ abstract class AppLocalizations {
   /// In de, this message translates to:
   /// **'Device-ID {id} kopiert'**
   String deviceIdCopied(Object id);
+
+  /// No description provided for @rawTitle.
+  ///
+  /// In de, this message translates to:
+  /// **'RAW'**
+  String get rawTitle;
+
+  /// No description provided for @copyRawTooltip.
+  ///
+  /// In de, this message translates to:
+  /// **'Rohdaten kopieren'**
+  String get copyRawTooltip;
+
+  /// No description provided for @rawCopied.
+  ///
+  /// In de, this message translates to:
+  /// **'Rohdaten kopiert'**
+  String get rawCopied;
 }
 
 class _AppLocalizationsDelegate

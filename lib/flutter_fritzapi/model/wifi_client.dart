@@ -1,3 +1,5 @@
+import 'package:flutter/material.dart';
+
 /// Represents a Wi‑Fi client known to the FRITZ!Box.
 class WifiClient {
   const WifiClient({
@@ -39,7 +41,7 @@ class WifiClient {
   final String? radioChannel6;
 
   /// Try to resolve device type
-  WifiDeviceType? get deviceType => WifiDeviceType.fromDeviceName(name);
+  WifiDeviceType get deviceType => WifiDeviceType.fromDeviceName(name);
 }
 
 enum WifiDeviceType {
@@ -56,7 +58,36 @@ enum WifiDeviceType {
   gamingConsole,
   unknown;
 
-  static WifiDeviceType? fromDeviceName(String? value) {
+  IconData get icon {
+    switch (this) {
+      case WifiDeviceType.smartphone:
+        return Icons.smartphone;
+      case WifiDeviceType.tablet:
+        return Icons.tablet;
+      case WifiDeviceType.computer:
+        return Icons.computer;
+      case WifiDeviceType.security_camera:
+        return Icons.videocam;
+      case WifiDeviceType.speaker:
+        return Icons.speaker;
+      case WifiDeviceType.fritz_repeater:
+        return Icons.router;
+      case WifiDeviceType.google_chromecast:
+        return Icons.tv;
+      case WifiDeviceType.television:
+        return Icons.tv_outlined;
+      case WifiDeviceType.tp_tapo_plug:
+        return Icons.power;
+      case WifiDeviceType.gamingConsole:
+        return Icons.sports_esports;
+      case WifiDeviceType.fritz_box:
+        return Icons.router;
+      case WifiDeviceType.unknown:
+        return Icons.devices_other;
+    }
+  }
+
+  static WifiDeviceType fromDeviceName(String? value) {
     if (value != null) {
       final deviceName = value.toLowerCase();
       if (deviceName.contains('indoorcam')) {

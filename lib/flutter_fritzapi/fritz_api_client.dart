@@ -115,12 +115,10 @@ abstract class FritzApiClient {
     assert(sessionId != null && sessionId!.isNotEmpty, 'SessionId must not be null or empty');
 
     final List<Uri> candidates = <Uri>[
-      Uri.parse('$baseUrl/internet/inetstat_monitor.lua?sid=${sessionId!}&useajax=1&xhr=1&action=DataRefresh'),
-      Uri.parse('$baseUrl/internet/inetstat_monitor.lua?sid=${sessionId!}&xhr=1'),
-      Uri.parse('$baseUrl/internet/inetstat_monitor.lua?sid=${sessionId!}&useajax=1'),
-      Uri.parse('$baseUrl/internet/inetstat_monitor.lua?sid=${sessionId!}'),
-      Uri.parse('$baseUrl/online-monitor/online-counter'),
-      Uri.parse('$baseUrl/data.lua?page=overview&sid=${sessionId!}&xhr=1'),
+      Uri.parse('$baseUrl/online-monitor/counter'),
+      Uri.parse('$baseUrl/online-monitor/counter&sid=${sessionId!}'),
+      Uri.parse('$baseUrl/online-monitor/counter&sid=${sessionId!}&xhr=1'),
+      Uri.parse('$baseUrl/online-monitor/counter&sid=${sessionId!}&useajax=1'),
     ];
 
     for (final Uri url in candidates) {
@@ -135,6 +133,7 @@ abstract class FritzApiClient {
         } else {
           response = await get(url, headers: const <String, String>{});
         }
+        print('${url.toString()}: ${response.body}');
         final Map<String, dynamic>? decoded = _tryDecodeJsonMap(response.body);
         if (decoded == null) {
           continue;
@@ -158,13 +157,24 @@ abstract class FritzApiClient {
     EnergyStats? week;
     EnergyStats? month;
     EnergyStats? twoYears;
+    final Map<HistoryRange, Map<String, dynamic>> raw = <HistoryRange, Map<String, dynamic>>{};
 
     for (final HistoryRange range in ranges) {
-      final HomeAutoQueryCommand? command = _energyCommandForRange(range);
-      if (command == null) {
+      final Map<String, dynamic>? payload = await _getHomeAutoStats(
+        command: _sensorCommand(SensorStatType.temperature, range, prefixOverride: 'EnergyStats'),
+        deviceId: deviceId,
+      );
+      if (payload == null) {
         continue;
       }
-      final EnergyStats? stats = await getEnergyStats(command: command, deviceId: deviceId);
+      final Map<String, dynamic> normalized = _normalizeEnergyPayload(payload);
+      raw[range] = normalized;
+      EnergyStats? stats;
+      try {
+        stats = EnergyStats.fromJson(normalized);
+      } catch (error, stack) {
+        debugPrint('Failed to parse EnergyStats for range $range: $error\n$stack\nPayload: $normalized');
+      }
       if (stats == null) {
         continue;
       }
@@ -184,7 +194,7 @@ abstract class FritzApiClient {
       }
     }
 
-    final PowerHistory history = PowerHistory(day: day, week: week, month: month, twoYears: twoYears);
+    final PowerHistory history = PowerHistory(day: day, week: week, month: month, twoYears: twoYears, raw: raw);
     return history.isEmpty ? null : history;
   }
 
@@ -192,25 +202,13 @@ abstract class FritzApiClient {
   Future<Map<HistoryRange, SensorHistory>> getTemperatureHistory(
     int deviceId, {
     List<HistoryRange> ranges = const <HistoryRange>[HistoryRange.day],
-  }) => _getSensorHistory(
-    baseUrl: baseUrl,
-    sessionId: sessionId!,
-    deviceId: deviceId,
-    ranges: ranges,
-    type: SensorStatType.temperature,
-  );
+  }) => _getSensorHistory(deviceId: deviceId, ranges: ranges, type: SensorStatType.temperature);
 
   /// Retrieves humidity history for a device for the requested ranges.
   Future<Map<HistoryRange, SensorHistory>> getHumidityHistory(
     int deviceId, {
     List<HistoryRange> ranges = const <HistoryRange>[HistoryRange.day],
-  }) => _getSensorHistory(
-    baseUrl: baseUrl,
-    sessionId: sessionId!,
-    deviceId: deviceId,
-    ranges: ranges,
-    type: SensorStatType.humidity,
-  );
+  }) => _getSensorHistory(deviceId: deviceId, ranges: ranges, type: SensorStatType.humidity);
 
   /// Returns a list of Wi‑Fi clients reported by the FRITZ!Box.
   Future<List<WifiClient>> getWifiClients() async {
@@ -243,15 +241,20 @@ abstract class FritzApiClient {
     final url = Uri.parse(
       '$baseUrl/net/home_auto_query.lua?sid=${sessionId!}&command=${command.name}&id=$deviceId&xhr=1',
     );
-    final Map<String, String> headers = {};
-    final response = await get(url, headers: headers);
-
-    try {
-      return EnergyStats.fromJson(jsonDecode(response.body));
-    } catch (e) {
-      debugPrint(e.toString());
+    final response = await get(url, headers: const <String, String>{});
+    final dynamic decoded = jsonDecode(response.body);
+    if (decoded is! Map<String, dynamic>) {
+      return null;
     }
-    return null;
+    final Map<String, dynamic> normalized = _normalizeEnergyPayload(decoded);
+    try {
+      return EnergyStats.fromJson(normalized);
+    } catch (error, stack) {
+      Error.throwWithStackTrace(
+        StateError('Failed to parse energy stats for device $deviceId: $error\nPayload: $normalized'),
+        stack,
+      );
+    }
   }
 
   Future<FritzApiResponse> get(Uri url, {Map<String, String>? headers});
@@ -310,23 +313,16 @@ abstract class FritzApiClient {
   }
 
   Future<Map<HistoryRange, SensorHistory>> _getSensorHistory({
-    required String baseUrl,
-    required String sessionId,
     required int deviceId,
     required List<HistoryRange> ranges,
     required SensorStatType type,
   }) async {
-    assert(sessionId.isNotEmpty, 'SessionId must not be null or empty');
+    assert(sessionId != null && sessionId!.isNotEmpty, 'SessionId must not be null or empty');
 
     final Map<HistoryRange, SensorHistory> result = <HistoryRange, SensorHistory>{};
     for (final HistoryRange range in ranges) {
       final String command = _sensorCommand(type, range);
-      final Map<String, dynamic>? payload = await _getHomeAutoStats(
-        baseUrl: baseUrl,
-        sessionId: sessionId,
-        command: command,
-        deviceId: deviceId,
-      );
+      final Map<String, dynamic>? payload = await _getHomeAutoStats(command: command, deviceId: deviceId);
       if (payload == null) {
         continue;
       }
@@ -338,11 +334,13 @@ abstract class FritzApiClient {
     return result;
   }
 
-  String _sensorCommand(SensorStatType type, HistoryRange range) {
-    final String prefix = switch (type) {
-      SensorStatType.temperature => 'TemperatureStats',
-      SensorStatType.humidity => 'HumidityStats',
-    };
+  String _sensorCommand(SensorStatType type, HistoryRange range, {String? prefixOverride}) {
+    final String prefix =
+        prefixOverride ??
+        switch (type) {
+          SensorStatType.temperature => 'TemperatureStats',
+          SensorStatType.humidity => 'HumidityStats',
+        };
     final String suffix = switch (range) {
       HistoryRange.day => '24h',
       HistoryRange.week => 'week',
@@ -353,15 +351,61 @@ abstract class FritzApiClient {
   }
 
   Future<Map<String, dynamic>?> _getHomeAutoStats({
-    required String baseUrl,
-    required String sessionId,
     required String command,
     required int deviceId,
+    String? overrideBaseUrl,
+    String? overrideSessionId,
   }) async {
-    assert(sessionId.isNotEmpty, 'SessionId must not be null or empty');
-    final Uri url = Uri.parse('$baseUrl/net/home_auto_query.lua?sid=$sessionId&command=$command&id=$deviceId&xhr=1');
+    final String sid = overrideSessionId ?? sessionId ?? '';
+    assert(sid.isNotEmpty, 'SessionId must not be null or empty');
+    final Uri url = Uri.parse(
+      '${overrideBaseUrl ?? baseUrl}/net/home_auto_query.lua?sid=$sid&command=$command&id=$deviceId&xhr=1',
+    );
     final FritzApiResponse response = await get(url, headers: const <String, String>{});
     return _tryDecodeJsonMap(response.body);
+  }
+
+  Map<String, dynamic> _normalizeEnergyPayload(Map<String, dynamic> input) {
+    final Map<String, dynamic> output = Map<String, dynamic>.from(input);
+
+    void parseIntKey(String key) {
+      final dynamic value = output[key];
+      if (value is String) {
+        final int? parsed = int.tryParse(value);
+        if (parsed != null) {
+          output[key] = parsed;
+        }
+      }
+    }
+
+    parseIntKey('sum_Month');
+    parseIntKey('sum_Year');
+    parseIntKey('sum_Day');
+
+    if (output['EnergyStat'] is Map<String, dynamic>) {
+      final Map<String, dynamic> energyStat = Map<String, dynamic>.from(output['EnergyStat'] as Map<String, dynamic>);
+      void parseEnergyInt(String key) {
+        final dynamic value = energyStat[key];
+        if (value is String) {
+          final int? parsed = int.tryParse(value);
+          if (parsed != null) {
+            energyStat[key] = parsed;
+          }
+        }
+      }
+
+      parseEnergyInt('ebene');
+      parseEnergyInt('anzahl');
+      parseEnergyInt('times_type');
+      if (energyStat['values'] is List) {
+        energyStat['values'] = (energyStat['values'] as List)
+            .map((dynamic v) => v is String ? int.tryParse(v) ?? v : v)
+            .toList();
+      }
+      output['EnergyStat'] = energyStat;
+    }
+
+    return output;
   }
 
   SensorHistory? _parseSensorHistory(
@@ -489,53 +533,6 @@ List<WifiClient> parseWifiClients(Map<String, dynamic> data) {
   });
 
   return clients;
-}
-
-Map<String, dynamic>? _parsePropertiesTxt(dynamic rawProperties) {
-  if (rawProperties is! List) {
-    return null;
-  }
-  final Map<String, dynamic> result = <String, dynamic>{};
-  for (final dynamic item in rawProperties) {
-    if (item is! Map<String, dynamic>) {
-      continue;
-    }
-    final String? txt = _asString(item['txt']);
-    if (txt == null || txt.isEmpty) {
-      continue;
-    }
-    final Map<String, dynamic> parsed = _parseWifiTxtEntry(txt);
-    result.addAll(parsed);
-  }
-  return result.isEmpty ? null : result;
-}
-
-Map<String, dynamic> _parseWifiTxtEntry(String txt) {
-  final Map<String, dynamic> result = <String, dynamic>{};
-  final List<String> parts = txt.split(',');
-  String? band;
-  String? speedsPart;
-  if (parts.isNotEmpty) {
-    band = parts.first.trim();
-    if (parts.length > 1) {
-      speedsPart = parts.sublist(1).join(',').trim();
-    }
-  }
-  if (band != null) {
-    if (band.contains('5')) {
-      result['channel5'] = band;
-    } else if (band.contains('2,4') || band.contains('2.4')) {
-      result['channel24'] = band;
-    }
-  }
-  if (speedsPart != null && speedsPart.contains('/')) {
-    final List<String> speedSplit = speedsPart.split('/');
-    if (speedSplit.length >= 2) {
-      result['download'] = speedSplit[0].trim();
-      result['upload'] = speedSplit[1].trim();
-    }
-  }
-  return result;
 }
 
 String _wifiClientName(Map<String, dynamic> entry) {

@@ -18,12 +18,19 @@ String historyRangeLabel(HistoryRange range) {
 
 /// Aggregated power stats across multiple time buckets.
 class PowerHistory {
-  const PowerHistory({this.day, this.week, this.month, this.twoYears});
+  const PowerHistory({
+    this.day,
+    this.week,
+    this.month,
+    this.twoYears,
+    this.raw = const <HistoryRange, Map<String, dynamic>>{},
+  });
 
   final EnergyStats? day;
   final EnergyStats? week;
   final EnergyStats? month;
   final EnergyStats? twoYears;
+  final Map<HistoryRange, Map<String, dynamic>> raw;
 
   bool get isEmpty =>
       day == null && week == null && month == null && twoYears == null;

@@ -190,5 +190,8 @@
     "placeholders": {
       "id": {}
     }
-  }
+  },
+  "rawTitle": "RAW",
+  "copyRawTooltip": "Rohdaten kopieren",
+  "rawCopied": "Rohdaten kopiert"
 }

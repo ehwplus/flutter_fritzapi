@@ -1,4 +1,4 @@
-import 'package:flutter_fritzapi/flutter_fritzapi/model/devices.dart';
+import 'package:flutter_fritzapi/flutter_fritzapi/model/device.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -20,10 +20,7 @@ void main() {
                 'temperature': <String, dynamic>{'celsius': 21.5},
                 'humidity': <String, dynamic>{'relativeHumidity': 54},
               },
-              <String, dynamic>{
-                'type': 'SmartHomeSwitch',
-                'powerConsumptionInWatt': '3.2',
-              },
+              <String, dynamic>{'type': 'SmartHomeSwitch', 'powerConsumptionInWatt': '3.2'},
             ],
           },
         ],
