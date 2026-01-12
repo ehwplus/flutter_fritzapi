@@ -181,5 +181,14 @@
   "wifiChannel5": "5 GHz",
   "wifiDownload": "Download",
   "wifiUpload": "Upload",
-  "wifiTxtLabel": "Funkkanäle / Durchsatz"
+  "wifiTxtLabel": "Funkkanäle / Durchsatz",
+  "copySidTooltip": "SID kopieren",
+  "sidCopied": "SID in Zwischenablage kopiert",
+  "copyDeviceIdTooltip": "Device-ID kopieren",
+  "deviceIdCopied": "Device-ID {id} kopiert",
+  "@deviceIdCopied": {
+    "placeholders": {
+      "id": {}
+    }
+  }
 }

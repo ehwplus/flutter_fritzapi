@@ -555,6 +555,30 @@ abstract class AppLocalizations {
   /// In de, this message translates to:
   /// **'Funkkanäle / Durchsatz'**
   String get wifiTxtLabel;
+
+  /// No description provided for @copySidTooltip.
+  ///
+  /// In de, this message translates to:
+  /// **'SID kopieren'**
+  String get copySidTooltip;
+
+  /// No description provided for @sidCopied.
+  ///
+  /// In de, this message translates to:
+  /// **'SID in Zwischenablage kopiert'**
+  String get sidCopied;
+
+  /// No description provided for @copyDeviceIdTooltip.
+  ///
+  /// In de, this message translates to:
+  /// **'Device-ID kopieren'**
+  String get copyDeviceIdTooltip;
+
+  /// No description provided for @deviceIdCopied.
+  ///
+  /// In de, this message translates to:
+  /// **'Device-ID {id} kopiert'**
+  String deviceIdCopied(Object id);
 }
 
 class _AppLocalizationsDelegate

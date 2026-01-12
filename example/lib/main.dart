@@ -1,7 +1,7 @@
-import 'package:example/l10n/generated/app_localizations.dart';
 import 'package:example/custom_fritz_api_client.dart';
-
+import 'package:example/l10n/generated/app_localizations.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_fritzapi/flutter_fritzapi.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -16,7 +16,8 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       locale: const Locale('de'),
-      onGenerateTitle: (BuildContext context) => AppLocalizations.of(context).appTitle,
+      onGenerateTitle: (BuildContext context) =>
+          AppLocalizations.of(context).appTitle,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
       theme: ThemeData(primarySwatch: Colors.blue),
@@ -35,7 +36,9 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   CustomFritzApiClient? _fritzApiClient;
 
-  final TextEditingController _baseUrlController = TextEditingController(text: 'http://fritz.box');
+  final TextEditingController _baseUrlController = TextEditingController(
+    text: 'http://fritz.box',
+  );
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final FocusNode _usernameFocus = FocusNode();
@@ -119,7 +122,9 @@ class _MyHomePageState extends State<MyHomePage> {
       }
       setState(() {
         _connected = isConnected;
-        _detectError = isConnected ? null : l10n.detectErrorWithUrl(_currentBaseUrl);
+        _detectError = isConnected
+            ? null
+            : l10n.detectErrorWithUrl(_currentBaseUrl);
       });
     } catch (error) {
       if (!mounted) {
@@ -159,7 +164,9 @@ class _MyHomePageState extends State<MyHomePage> {
     });
     try {
       final String? sid = await client.getSessionId(
-        username: _usernameController.text.isEmpty ? null : _usernameController.text,
+        username: _usernameController.text.isEmpty
+            ? null
+            : _usernameController.text,
         password: _passwordController.text,
       );
       if (!mounted) {
@@ -211,7 +218,10 @@ class _MyHomePageState extends State<MyHomePage> {
     await _prefs?.setString('password', _passwordController.text);
   }
 
-  List<_DataType> _capabilitiesForDevice(Device? device, {required bool isRouter}) {
+  List<_DataType> _capabilitiesForDevice(
+    Device? device, {
+    required bool isRouter,
+  }) {
     if (isRouter) {
       return const <_DataType>[_DataType.onlineCounter, _DataType.wifiClients];
     }
@@ -268,99 +278,118 @@ class _MyHomePageState extends State<MyHomePage> {
           padding: const EdgeInsets.all(16),
           child: FutureBuilder<_DataPayload>(
             future: _loadData(device: device, type: type, isRouter: isRouter),
-            builder: (BuildContext context, AsyncSnapshot<_DataPayload> snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Text(
-                      l10n.dataSheetTitle(deviceName, type.label(l10n)),
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    const SizedBox(height: 16),
-                    const LinearProgressIndicator(),
-                    const SizedBox(height: 8),
-                    Text(l10n.loadingData),
-                  ],
-                );
-              }
-              if (snapshot.hasError) {
-                return Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Text(
-                      l10n.dataSheetTitle(deviceName, type.label(l10n)),
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    const SizedBox(height: 16),
-                    Text(l10n.errorWithMessage('${snapshot.error}'), style: const TextStyle(color: Colors.red)),
-                    const SizedBox(height: 12),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: TextButton(onPressed: () => Navigator.pop(context), child: Text(l10n.closeButton)),
-                    ),
-                  ],
-                );
-              }
-              final _DataPayload? data = snapshot.data;
-              if (type == _DataType.wifiClients && data?.wifiClients != null) {
-                return Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Text(
-                      l10n.dataSheetTitle(deviceName, type.label(l10n)),
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(data!.current),
-                    const SizedBox(height: 12),
-                    SizedBox(
-                      height: 420,
-                      child: ListView.separated(
-                        shrinkWrap: true,
-                        itemBuilder: (BuildContext context, int index) {
-                          final WifiClient client = data.wifiClients![index];
-                          return _buildWifiClientTile(client);
-                        },
-                        separatorBuilder: (_, __) => const SizedBox(height: 8),
-                        itemCount: data.wifiClients!.length,
+            builder:
+                (BuildContext context, AsyncSnapshot<_DataPayload> snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Text(
+                          l10n.dataSheetTitle(deviceName, type.label(l10n)),
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                        const SizedBox(height: 16),
+                        const LinearProgressIndicator(),
+                        const SizedBox(height: 8),
+                        Text(l10n.loadingData),
+                      ],
+                    );
+                  }
+                  if (snapshot.hasError) {
+                    return Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Text(
+                          l10n.dataSheetTitle(deviceName, type.label(l10n)),
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          l10n.errorWithMessage('${snapshot.error}'),
+                          style: const TextStyle(color: Colors.red),
+                        ),
+                        const SizedBox(height: 12),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: TextButton(
+                            onPressed: () => Navigator.pop(context),
+                            child: Text(l10n.closeButton),
+                          ),
+                        ),
+                      ],
+                    );
+                  }
+                  final _DataPayload? data = snapshot.data;
+                  if (type == _DataType.wifiClients &&
+                      data?.wifiClients != null) {
+                    return Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Text(
+                          l10n.dataSheetTitle(deviceName, type.label(l10n)),
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(data!.current),
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          height: 420,
+                          child: ListView.separated(
+                            shrinkWrap: true,
+                            itemBuilder: (BuildContext context, int index) {
+                              final WifiClient client =
+                                  data.wifiClients![index];
+                              return _buildWifiClientTile(client);
+                            },
+                            separatorBuilder: (_, __) =>
+                                const SizedBox(height: 8),
+                            itemCount: data.wifiClients!.length,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: TextButton(
+                            onPressed: () => Navigator.pop(context),
+                            child: Text(l10n.closeButton),
+                          ),
+                        ),
+                      ],
+                    );
+                  }
+                  return Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text(
+                        l10n.dataSheetTitle(deviceName, type.label(l10n)),
+                        style: Theme.of(context).textTheme.titleMedium,
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: TextButton(onPressed: () => Navigator.pop(context), child: Text(l10n.closeButton)),
-                    ),
-                  ],
-                );
-              }
-              return Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Text(
-                    l10n.dataSheetTitle(deviceName, type.label(l10n)),
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                  const SizedBox(height: 16),
-                  Text(data?.current ?? l10n.noData),
-                  if (data?.history != null) ...<Widget>[
-                    const SizedBox(height: 12),
-                    Text(l10n.historyTitle, style: Theme.of(context).textTheme.titleSmall),
-                    const SizedBox(height: 4),
-                    Text(data!.history!),
-                  ],
-                  const SizedBox(height: 12),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: TextButton(onPressed: () => Navigator.pop(context), child: Text(l10n.closeButton)),
-                  ),
-                ],
-              );
-            },
+                      const SizedBox(height: 16),
+                      Text(data?.current ?? l10n.noData),
+                      if (data?.history != null) ...<Widget>[
+                        const SizedBox(height: 12),
+                        Text(
+                          l10n.historyTitle,
+                          style: Theme.of(context).textTheme.titleSmall,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(data!.history!),
+                      ],
+                      const SizedBox(height: 12),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: Text(l10n.closeButton),
+                        ),
+                      ),
+                    ],
+                  );
+                },
           ),
         );
       },
@@ -381,7 +410,11 @@ class _MyHomePageState extends State<MyHomePage> {
     return null;
   }
 
-  Future<_DataPayload> _loadData({Device? device, required _DataType type, required bool isRouter}) async {
+  Future<_DataPayload> _loadData({
+    Device? device,
+    required _DataType type,
+    required bool isRouter,
+  }) async {
     final CustomFritzApiClient? client = _fritzApiClient;
     if (client == null || _sessionId == null) {
       throw StateError(l10n.loginRequired);
@@ -408,10 +441,8 @@ class _MyHomePageState extends State<MyHomePage> {
         if (value == null) {
           throw StateError(l10n.noTemperature);
         }
-        final Map<HistoryRange, SensorHistory> histories = await client.getTemperatureHistory(
-          effective.id,
-          ranges: HistoryRange.values,
-        );
+        final Map<HistoryRange, SensorHistory> histories = await client
+            .getTemperatureHistory(effective.id, ranges: HistoryRange.values);
         final String historyText = _formatSensorHistory(histories, unit: '°C');
         return _DataPayload(
           current: l10n.currentTemperature(value.toStringAsFixed(1)),
@@ -426,10 +457,8 @@ class _MyHomePageState extends State<MyHomePage> {
         if (value == null) {
           throw StateError(l10n.noHumidity);
         }
-        final Map<HistoryRange, SensorHistory> histories = await client.getHumidityHistory(
-          effective.id,
-          ranges: HistoryRange.values,
-        );
+        final Map<HistoryRange, SensorHistory> histories = await client
+            .getHumidityHistory(effective.id, ranges: HistoryRange.values);
         final String historyText = _formatSensorHistory(histories, unit: '%');
         return _DataPayload(
           current: l10n.currentHumidity(value.toStringAsFixed(1)),
@@ -444,22 +473,33 @@ class _MyHomePageState extends State<MyHomePage> {
         if (value == null) {
           throw StateError(l10n.noPower);
         }
-        final PowerHistory? history = await client.getPowerHistory(effective.id, ranges: HistoryRange.values);
+        final PowerHistory? history = await client.getPowerHistory(
+          effective.id,
+          ranges: HistoryRange.values,
+        );
         final String historyText = _formatPowerHistory(history);
         return _DataPayload(
           current: l10n.currentPower(value.toStringAsFixed(1)),
-          history: historyText.isEmpty ? l10n.historyEnergyMissing : historyText,
+          history: historyText.isEmpty
+              ? l10n.historyEnergyMissing
+              : historyText,
         );
       case _DataType.wifiClients:
         final List<WifiClient> clients = await client.getWifiClients();
         if (clients.isEmpty) {
           throw StateError(l10n.noWifiClients);
         }
-        return _DataPayload(current: l10n.wifiClientCount(clients.length.toString()), wifiClients: clients);
+        return _DataPayload(
+          current: l10n.wifiClientCount(clients.length.toString()),
+          wifiClients: clients,
+        );
     }
   }
 
-  String _formatSensorHistory(Map<HistoryRange, SensorHistory> histories, {required String unit}) {
+  String _formatSensorHistory(
+    Map<HistoryRange, SensorHistory> histories, {
+    required String unit,
+  }) {
     if (histories.isEmpty) {
       return '';
     }
@@ -467,7 +507,12 @@ class _MyHomePageState extends State<MyHomePage> {
     histories.forEach((HistoryRange range, SensorHistory history) {
       final double? avg = history.average;
       if (avg != null) {
-        sb.writeln(l10n.historySensorEntry(_rangeLabel(range), '${avg.toStringAsFixed(1)} $unit'));
+        sb.writeln(
+          l10n.historySensorEntry(
+            _rangeLabel(range),
+            '${avg.toStringAsFixed(1)} $unit',
+          ),
+        );
       }
     });
     return sb.toString().trim();
@@ -479,17 +524,40 @@ class _MyHomePageState extends State<MyHomePage> {
     }
     final StringBuffer sb = StringBuffer();
     if (history.day != null) {
-      sb.writeln(l10n.historyPowerEntry(_rangeLabel(HistoryRange.day), history.day!.sumDay.toString()));
+      sb.writeln(
+        l10n.historyPowerEntry(
+          _rangeLabel(HistoryRange.day),
+          history.day!.sumDay.toString(),
+        ),
+      );
     }
     if (history.week != null) {
-      final int weekTotal = history.week!.energyStat.values.fold(0, (int a, int b) => a + b);
-      sb.writeln(l10n.historyPowerEntry(_rangeLabel(HistoryRange.week), weekTotal.toString()));
+      final int weekTotal = history.week!.energyStat.values.fold(
+        0,
+        (int a, int b) => a + b,
+      );
+      sb.writeln(
+        l10n.historyPowerEntry(
+          _rangeLabel(HistoryRange.week),
+          weekTotal.toString(),
+        ),
+      );
     }
     if (history.month != null) {
-      sb.writeln(l10n.historyPowerEntry(_rangeLabel(HistoryRange.month), history.month!.sumMonth.toString()));
+      sb.writeln(
+        l10n.historyPowerEntry(
+          _rangeLabel(HistoryRange.month),
+          history.month!.sumMonth.toString(),
+        ),
+      );
     }
     if (history.twoYears != null) {
-      sb.writeln(l10n.historyPowerEntry(_rangeLabel(HistoryRange.twoYears), history.twoYears!.sumYear.toString()));
+      sb.writeln(
+        l10n.historyPowerEntry(
+          _rangeLabel(HistoryRange.twoYears),
+          history.twoYears!.sumYear.toString(),
+        ),
+      );
     }
     return sb.toString().trim();
   }
@@ -509,9 +577,15 @@ class _MyHomePageState extends State<MyHomePage> {
 
   Widget _buildWifiClientTile(WifiClient client) {
     final String lastSeen = _formatLastSeen(client.lastSeen);
-    final String channel2_4 = client.radioChannel2_4 != null ? client.radioChannel2_4! : '';
-    final String channel5 = client.radioChannel5 != null ? client.radioChannel5! : '';
-    final String channel6 = client.radioChannel6 != null ? client.radioChannel6! : '';
+    final String channel2_4 = client.radioChannel2_4 != null
+        ? client.radioChannel2_4!
+        : '';
+    final String channel5 = client.radioChannel5 != null
+        ? client.radioChannel5!
+        : '';
+    final String channel6 = client.radioChannel6 != null
+        ? client.radioChannel6!
+        : '';
     final String txtInfo =
         '${channel2_4.isEmpty ? '' : channel2_4} ${channel5.isEmpty ? '' : '${channel2_4.isNotEmpty ? ', ' : ''}$channel5'} ${channel6.isEmpty ? '' : '${channel2_4.isNotEmpty || channel5.isNotEmpty ? ', ' : ''}$channel6'}';
     return Card(
@@ -524,15 +598,26 @@ class _MyHomePageState extends State<MyHomePage> {
               children: <Widget>[
                 Icon(_wifiIcon(client), color: Colors.blueGrey),
                 const SizedBox(width: 8),
-                Expanded(child: Text(client.name, style: Theme.of(context).textTheme.titleMedium)),
+                Expanded(
+                  child: Text(
+                    client.name,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ),
                 if (client.isOnline)
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.green.withOpacity(0.15),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Text(l10n.wifiClientOnline, style: TextStyle(color: Colors.green)),
+                    child: Text(
+                      l10n.wifiClientOnline,
+                      style: TextStyle(color: Colors.green),
+                    ),
                   ),
               ],
             ),
@@ -627,11 +712,17 @@ class _MyHomePageState extends State<MyHomePage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            Text(l10n.detectTitle, style: Theme.of(context).textTheme.titleMedium),
+            Text(
+              l10n.detectTitle,
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
             const SizedBox(height: 8),
             TextField(
               controller: _baseUrlController,
-              decoration: InputDecoration(labelText: l10n.baseUrlLabel, helperText: l10n.baseUrlHelper),
+              decoration: InputDecoration(
+                labelText: l10n.baseUrlLabel,
+                helperText: l10n.baseUrlHelper,
+              ),
               onChanged: (_) => _persistPrefs(),
             ),
             const SizedBox(height: 12),
@@ -642,7 +733,11 @@ class _MyHomePageState extends State<MyHomePage> {
                   color: _connected ? Colors.green : Colors.blueGrey,
                 ),
                 const SizedBox(width: 8),
-                Expanded(child: Text(_connected ? l10n.detectFound : l10n.detectSearching)),
+                Expanded(
+                  child: Text(
+                    _connected ? l10n.detectFound : l10n.detectSearching,
+                  ),
+                ),
                 TextButton(
                   onPressed: _detecting
                       ? null
@@ -650,7 +745,9 @@ class _MyHomePageState extends State<MyHomePage> {
                           _rebuildClient();
                           _autoDetect();
                         },
-                  child: _detecting ? Text(l10n.detectSearchingShort) : Text(l10n.detectRetry),
+                  child: _detecting
+                      ? Text(l10n.detectSearchingShort)
+                      : Text(l10n.detectRetry),
                 ),
               ],
             ),
@@ -674,7 +771,10 @@ class _MyHomePageState extends State<MyHomePage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            Text(l10n.loginTitle, style: Theme.of(context).textTheme.titleMedium),
+            Text(
+              l10n.loginTitle,
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
             const SizedBox(height: 8),
             TextField(
               controller: _passwordController,
@@ -697,7 +797,9 @@ class _MyHomePageState extends State<MyHomePage> {
               children: <Widget>[
                 ElevatedButton(
                   onPressed: !_connected || _loggingIn ? null : _login,
-                  child: _loggingIn ? Text(l10n.loginButtonBusy) : Text(l10n.loginButton),
+                  child: _loggingIn
+                      ? Text(l10n.loginButtonBusy)
+                      : Text(l10n.loginButton),
                 ),
               ],
             ),
@@ -713,15 +815,35 @@ class _MyHomePageState extends State<MyHomePage> {
 
   Widget _buildLoggedInCard() {
     final String sid = _sessionId ?? '';
-    final String sidShort = sid.isNotEmpty && sid.length > 6 ? '${sid.substring(0, 6)}...' : sid;
+    final String sidShort = sid.isNotEmpty && sid.length > 6
+        ? '${sid.substring(0, 6)}...'
+        : sid;
     return Card(
       child: ListTile(
         leading: const Icon(Icons.lock_open, color: Colors.green),
         title: Text(l10n.connectedLoggedInTitle),
         subtitle: Text(
-          l10n.connectedStatus(_currentBaseUrl) + (sidShort.isNotEmpty ? '\n${l10n.sidLabel(sidShort)}' : ''),
+          l10n.connectedStatus(_currentBaseUrl) +
+              (sidShort.isNotEmpty ? '\n${l10n.sidLabel(sidShort)}' : ''),
         ),
-        trailing: TextButton(onPressed: _logout, child: Text(l10n.logoutButton)),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            IconButton(
+              tooltip: l10n.copySidTooltip,
+              icon: const Icon(Icons.copy),
+              onPressed: sid.isEmpty
+                  ? null
+                  : () {
+                      Clipboard.setData(ClipboardData(text: sid));
+                      ScaffoldMessenger.of(
+                        context,
+                      ).showSnackBar(SnackBar(content: Text(l10n.sidCopied)));
+                    },
+            ),
+            TextButton(onPressed: _logout, child: Text(l10n.logoutButton)),
+          ],
+        ),
       ),
     );
   }
@@ -771,7 +893,10 @@ class _MyHomePageState extends State<MyHomePage> {
     required bool isRouter,
     required AppLocalizations l10n,
   }) {
-    final List<_DataType> caps = _capabilitiesForDevice(device, isRouter: isRouter);
+    final List<_DataType> caps = _capabilitiesForDevice(
+      device,
+      isRouter: isRouter,
+    );
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(12),
@@ -783,9 +908,31 @@ class _MyHomePageState extends State<MyHomePage> {
               contentPadding: EdgeInsets.zero,
               title: Text(title),
               subtitle: Text(subtitle),
-              trailing: Text(
-                isRouter ? l10n.routerLabel : device?.category.name ?? '',
-                style: Theme.of(context).textTheme.bodySmall,
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  Text(
+                    isRouter ? l10n.routerLabel : device?.category.name ?? '',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                  if (!isRouter && device != null)
+                    IconButton(
+                      tooltip: l10n.copyDeviceIdTooltip,
+                      icon: const Icon(Icons.copy),
+                      onPressed: () {
+                        Clipboard.setData(
+                          ClipboardData(text: device.id.toString()),
+                        );
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              l10n.deviceIdCopied(device.id.toString()),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                ],
               ),
             ),
             if (caps.isEmpty)
@@ -800,8 +947,12 @@ class _MyHomePageState extends State<MyHomePage> {
                         label: Text(type.label(l10n)),
                         avatar: Icon(type.icon, size: 18),
                         selected: _selectedCapabilities[deviceKey] == type,
-                        onSelected: (_) =>
-                            _onCapabilitySelected(deviceKey: deviceKey, type: type, device: device, isRouter: isRouter),
+                        onSelected: (_) => _onCapabilitySelected(
+                          deviceKey: deviceKey,
+                          type: type,
+                          device: device,
+                          isRouter: isRouter,
+                        ),
                       ),
                     )
                     .toList(),
@@ -831,7 +982,10 @@ class _MyHomePageState extends State<MyHomePage> {
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(16),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: sections),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: sections,
+          ),
         ),
       ),
     );

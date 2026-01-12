@@ -281,4 +281,18 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get wifiTxtLabel => 'Funkkanäle / Durchsatz';
+
+  @override
+  String get copySidTooltip => 'SID kopieren';
+
+  @override
+  String get sidCopied => 'SID in Zwischenablage kopiert';
+
+  @override
+  String get copyDeviceIdTooltip => 'Device-ID kopieren';
+
+  @override
+  String deviceIdCopied(Object id) {
+    return 'Device-ID $id kopiert';
+  }
 }
