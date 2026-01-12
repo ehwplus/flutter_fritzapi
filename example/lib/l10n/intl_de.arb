@@ -56,6 +56,7 @@
   "humidityLabel": "Luftfeuchtigkeit",
   "powerLabel": "Leistung",
   "onlineCounterLabel": "Online-Counter",
+  "wifiClientsLabel": "WLAN-Clients",
   "loadingData": "Lade Daten...",
   "errorWithMessage": "Fehler: {message}",
   "@errorWithMessage": {
@@ -73,6 +74,20 @@
       "dayWh": {},
       "monthWh": {},
       "yearWh": {}
+    }
+  },
+  "historyPowerEntry": "{range}: {value} Wh",
+  "@historyPowerEntry": {
+    "placeholders": {
+      "range": {},
+      "value": {}
+    }
+  },
+  "historySensorEntry": "{range}: {value}",
+  "@historySensorEntry": {
+    "placeholders": {
+      "range": {},
+      "value": {}
     }
   },
   "currentPower": "Leistung: {value} W",
@@ -114,5 +129,57 @@
       "deviceName": {},
       "dataType": {}
     }
-  }
+  },
+  "rangeDay": "24h",
+  "rangeWeek": "Woche",
+  "rangeMonth": "Monat",
+  "rangeTwoYears": "2 Jahre",
+  "wifiClientCount": "{count} WLAN-Clients gefunden",
+  "@wifiClientCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "wifiClientLine": "{name} | IP: {ip} | MAC: {mac} | Typ: {type} | Status: {status}",
+  "@wifiClientLine": {
+    "placeholders": {
+      "name": {},
+      "ip": {},
+      "mac": {},
+      "type": {},
+      "status": {}
+    }
+  },
+  "wifiClientOnline": "online",
+  "wifiClientOffline": "offline",
+  "noWifiClients": "Keine WLAN-Clients gefunden.",
+  "wifiIpLabel": "IP",
+  "wifiMacLabel": "MAC",
+  "wifiTypeLabel": "Typ",
+  "wifiLastSeenLabel": "Zuletzt aktiv",
+  "wifiLastSeenUnknown": "Unbekannt",
+  "wifiLastSeenNow": "Gerade eben",
+  "wifiLastSeenMinutes": "vor {minutes} Minuten",
+  "@wifiLastSeenMinutes": {
+    "placeholders": {
+      "minutes": {}
+    }
+  },
+  "wifiLastSeenHours": "vor {hours} Stunden",
+  "@wifiLastSeenHours": {
+    "placeholders": {
+      "hours": {}
+    }
+  },
+  "wifiLastSeenDays": "vor {days} Tagen",
+  "@wifiLastSeenDays": {
+    "placeholders": {
+      "days": {}
+    }
+  },
+  "wifiChannel24": "2,4 GHz",
+  "wifiChannel5": "5 GHz",
+  "wifiDownload": "Download",
+  "wifiUpload": "Upload",
+  "wifiTxtLabel": "Funkkanäle / Durchsatz"
 }

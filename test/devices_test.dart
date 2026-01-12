@@ -1,7 +1,4 @@
-import 'dart:convert';
-
 import 'package:flutter_fritzapi/flutter_fritzapi/model/devices.dart';
-import 'package:flutter_fritzapi/flutter_fritzapi/model/energy_stats.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -16,7 +13,7 @@ void main() {
       'ssoSet': true,
       'dectMail': true,
       'mobile': true,
-      'liveImg': true
+      'liveImg': true,
     },
     'time': [],
     'data': {
@@ -40,21 +37,21 @@ void main() {
                 'id': 16,
                 'manufacturer': {'name': 'AVM'},
                 'actorIdentificationNumber': '13979 0342035',
-                'displayName': 'Wohnzimmerheizung'
+                'displayName': 'Wohnzimmerheizung',
               },
               'skills': [
                 {
                   'type': 'SmartHomeThermostat',
                   'presets': [
                     {'name': 'LOWER_TEMPERATURE', 'temperature': 16},
-                    {'name': 'UPPER_TEMPERATURE', 'temperature': 20}
+                    {'name': 'UPPER_TEMPERATURE', 'temperature': 20},
                   ],
                   'nextChange': {
                     'description': {
                       'action': 'TARGET_TEMPERATURE',
-                      'presetTemperature': {'name': 'UPPER_TEMPERATURE', 'temperature': 20}
+                      'presetTemperature': {'name': 'UPPER_TEMPERATURE', 'temperature': 20},
                     },
-                    'timeSetting': {'startDate': '2022-12-28', 'startTime': '06:30:40'}
+                    'timeSetting': {'startDate': '2022-12-28', 'startTime': '06:30:40'},
                   },
                   'temperatureDropDetection': {'doNotHeatOffsetInMinutes': 10, 'sensitivity': 5, 'isWindowOpen': false},
                   'targetTemp': 16,
@@ -73,12 +70,12 @@ void main() {
                               'endTime': '00:00:00',
                               'startTime': '00:00:00',
                               'repetition': 'YEARLY',
-                              'endDate': '2019-01-09'
+                              'endDate': '2019-01-09',
                             },
                             'description': {
                               'action': 'SET_TEMPERATURE',
-                              'presetTemperature': {'name': 'HOLIDAY_TEMPERATURE', 'temperature': 127.5}
-                            }
+                              'presetTemperature': {'name': 'HOLIDAY_TEMPERATURE', 'temperature': 127.5},
+                            },
                           },
                           {
                             'isEnabled': false,
@@ -87,12 +84,12 @@ void main() {
                               'endTime': '00:00:00',
                               'startTime': '00:00:00',
                               'repetition': 'YEARLY',
-                              'endDate': '2019-01-09'
+                              'endDate': '2019-01-09',
                             },
                             'description': {
                               'action': 'SET_TEMPERATURE',
-                              'presetTemperature': {'name': 'HOLIDAY_TEMPERATURE', 'temperature': 127.5}
-                            }
+                              'presetTemperature': {'name': 'HOLIDAY_TEMPERATURE', 'temperature': 127.5},
+                            },
                           },
                           {
                             'isEnabled': false,
@@ -101,12 +98,12 @@ void main() {
                               'endTime': '00:00:00',
                               'startTime': '00:00:00',
                               'repetition': 'YEARLY',
-                              'endDate': '2019-01-09'
+                              'endDate': '2019-01-09',
                             },
                             'description': {
                               'action': 'SET_TEMPERATURE',
-                              'presetTemperature': {'name': 'HOLIDAY_TEMPERATURE', 'temperature': 127.5}
-                            }
+                              'presetTemperature': {'name': 'HOLIDAY_TEMPERATURE', 'temperature': 127.5},
+                            },
                           },
                           {
                             'isEnabled': false,
@@ -115,14 +112,14 @@ void main() {
                               'endTime': '00:00:00',
                               'startTime': '00:00:00',
                               'repetition': 'YEARLY',
-                              'endDate': '2019-01-09'
+                              'endDate': '2019-01-09',
                             },
                             'description': {
                               'action': 'SET_TEMPERATURE',
-                              'presetTemperature': {'name': 'HOLIDAY_TEMPERATURE', 'temperature': 127.5}
-                            }
-                          }
-                        ]
+                              'presetTemperature': {'name': 'HOLIDAY_TEMPERATURE', 'temperature': 127.5},
+                            },
+                          },
+                        ],
                       },
                       {
                         'isEnabled': true,
@@ -132,9 +129,9 @@ void main() {
                           {
                             'isEnabled': true,
                             'timeSetting': {'startDate': '2019-06-01', 'repetition': 'YEARLY', 'endDate': '2019-08-31'},
-                            'description': {'action': 'SET_OFF'}
-                          }
-                        ]
+                            'description': {'action': 'SET_OFF'},
+                          },
+                        ],
                       },
                       {
                         'isEnabled': true,
@@ -145,313 +142,313 @@ void main() {
                             'isEnabled': true,
                             'timeSetting': {
                               'time': {'startTime': '07:30:00'},
-                              'dayOfWeek': 'SUN'
+                              'dayOfWeek': 'SUN',
                             },
                             'description': {
                               'action': 'SET_TEMPERATURE',
-                              'presetTemperature': {'name': 'UPPER_TEMPERATURE', 'temperature': 20}
-                            }
+                              'presetTemperature': {'name': 'UPPER_TEMPERATURE', 'temperature': 20},
+                            },
                           },
                           {
                             'isEnabled': true,
                             'timeSetting': {
                               'time': {'startTime': '11:30:00'},
-                              'dayOfWeek': 'SUN'
+                              'dayOfWeek': 'SUN',
                             },
                             'description': {
                               'action': 'SET_TEMPERATURE',
-                              'presetTemperature': {'name': 'LOWER_TEMPERATURE', 'temperature': 16}
-                            }
+                              'presetTemperature': {'name': 'LOWER_TEMPERATURE', 'temperature': 16},
+                            },
                           },
                           {
                             'isEnabled': true,
                             'timeSetting': {
                               'time': {'startTime': '17:00:00'},
-                              'dayOfWeek': 'SUN'
+                              'dayOfWeek': 'SUN',
                             },
                             'description': {
                               'action': 'SET_TEMPERATURE',
-                              'presetTemperature': {'name': 'UPPER_TEMPERATURE', 'temperature': 20}
-                            }
+                              'presetTemperature': {'name': 'UPPER_TEMPERATURE', 'temperature': 20},
+                            },
                           },
                           {
                             'isEnabled': true,
                             'timeSetting': {
                               'time': {'startTime': '23:00:00'},
-                              'dayOfWeek': 'SUN'
+                              'dayOfWeek': 'SUN',
                             },
                             'description': {
                               'action': 'SET_TEMPERATURE',
-                              'presetTemperature': {'name': 'LOWER_TEMPERATURE', 'temperature': 16}
-                            }
+                              'presetTemperature': {'name': 'LOWER_TEMPERATURE', 'temperature': 16},
+                            },
                           },
                           {
                             'isEnabled': true,
                             'timeSetting': {
                               'time': {'startTime': '06:30:00'},
-                              'dayOfWeek': 'MON'
+                              'dayOfWeek': 'MON',
                             },
                             'description': {
                               'action': 'SET_TEMPERATURE',
-                              'presetTemperature': {'name': 'UPPER_TEMPERATURE', 'temperature': 20}
-                            }
+                              'presetTemperature': {'name': 'UPPER_TEMPERATURE', 'temperature': 20},
+                            },
                           },
                           {
                             'isEnabled': true,
                             'timeSetting': {
                               'time': {'startTime': '08:00:00'},
-                              'dayOfWeek': 'MON'
+                              'dayOfWeek': 'MON',
                             },
                             'description': {
                               'action': 'SET_TEMPERATURE',
-                              'presetTemperature': {'name': 'LOWER_TEMPERATURE', 'temperature': 16}
-                            }
+                              'presetTemperature': {'name': 'LOWER_TEMPERATURE', 'temperature': 16},
+                            },
                           },
                           {
                             'isEnabled': true,
                             'timeSetting': {
                               'time': {'startTime': '18:00:00'},
-                              'dayOfWeek': 'MON'
+                              'dayOfWeek': 'MON',
                             },
                             'description': {
                               'action': 'SET_TEMPERATURE',
-                              'presetTemperature': {'name': 'UPPER_TEMPERATURE', 'temperature': 20}
-                            }
+                              'presetTemperature': {'name': 'UPPER_TEMPERATURE', 'temperature': 20},
+                            },
                           },
                           {
                             'isEnabled': true,
                             'timeSetting': {
                               'time': {'startTime': '22:00:00'},
-                              'dayOfWeek': 'MON'
+                              'dayOfWeek': 'MON',
                             },
                             'description': {
                               'action': 'SET_TEMPERATURE',
-                              'presetTemperature': {'name': 'LOWER_TEMPERATURE', 'temperature': 16}
-                            }
+                              'presetTemperature': {'name': 'LOWER_TEMPERATURE', 'temperature': 16},
+                            },
                           },
                           {
                             'isEnabled': true,
                             'timeSetting': {
                               'time': {'startTime': '06:30:00'},
-                              'dayOfWeek': 'TUE'
+                              'dayOfWeek': 'TUE',
                             },
                             'description': {
                               'action': 'SET_TEMPERATURE',
-                              'presetTemperature': {'name': 'UPPER_TEMPERATURE', 'temperature': 20}
-                            }
+                              'presetTemperature': {'name': 'UPPER_TEMPERATURE', 'temperature': 20},
+                            },
                           },
                           {
                             'isEnabled': true,
                             'timeSetting': {
                               'time': {'startTime': '08:00:00'},
-                              'dayOfWeek': 'TUE'
+                              'dayOfWeek': 'TUE',
                             },
                             'description': {
                               'action': 'SET_TEMPERATURE',
-                              'presetTemperature': {'name': 'LOWER_TEMPERATURE', 'temperature': 16}
-                            }
+                              'presetTemperature': {'name': 'LOWER_TEMPERATURE', 'temperature': 16},
+                            },
                           },
                           {
                             'isEnabled': true,
                             'timeSetting': {
                               'time': {'startTime': '18:00:00'},
-                              'dayOfWeek': 'TUE'
+                              'dayOfWeek': 'TUE',
                             },
                             'description': {
                               'action': 'SET_TEMPERATURE',
-                              'presetTemperature': {'name': 'UPPER_TEMPERATURE', 'temperature': 20}
-                            }
+                              'presetTemperature': {'name': 'UPPER_TEMPERATURE', 'temperature': 20},
+                            },
                           },
                           {
                             'isEnabled': true,
                             'timeSetting': {
                               'time': {'startTime': '22:00:00'},
-                              'dayOfWeek': 'TUE'
+                              'dayOfWeek': 'TUE',
                             },
                             'description': {
                               'action': 'SET_TEMPERATURE',
-                              'presetTemperature': {'name': 'LOWER_TEMPERATURE', 'temperature': 16}
-                            }
+                              'presetTemperature': {'name': 'LOWER_TEMPERATURE', 'temperature': 16},
+                            },
                           },
                           {
                             'isEnabled': true,
                             'timeSetting': {
                               'time': {'startTime': '06:30:00'},
-                              'dayOfWeek': 'WED'
+                              'dayOfWeek': 'WED',
                             },
                             'description': {
                               'action': 'SET_TEMPERATURE',
-                              'presetTemperature': {'name': 'UPPER_TEMPERATURE', 'temperature': 20}
-                            }
+                              'presetTemperature': {'name': 'UPPER_TEMPERATURE', 'temperature': 20},
+                            },
                           },
                           {
                             'isEnabled': true,
                             'timeSetting': {
                               'time': {'startTime': '08:00:00'},
-                              'dayOfWeek': 'WED'
+                              'dayOfWeek': 'WED',
                             },
                             'description': {
                               'action': 'SET_TEMPERATURE',
-                              'presetTemperature': {'name': 'LOWER_TEMPERATURE', 'temperature': 16}
-                            }
+                              'presetTemperature': {'name': 'LOWER_TEMPERATURE', 'temperature': 16},
+                            },
                           },
                           {
                             'isEnabled': true,
                             'timeSetting': {
                               'time': {'startTime': '18:00:00'},
-                              'dayOfWeek': 'WED'
+                              'dayOfWeek': 'WED',
                             },
                             'description': {
                               'action': 'SET_TEMPERATURE',
-                              'presetTemperature': {'name': 'UPPER_TEMPERATURE', 'temperature': 20}
-                            }
+                              'presetTemperature': {'name': 'UPPER_TEMPERATURE', 'temperature': 20},
+                            },
                           },
                           {
                             'isEnabled': true,
                             'timeSetting': {
                               'time': {'startTime': '22:00:00'},
-                              'dayOfWeek': 'WED'
+                              'dayOfWeek': 'WED',
                             },
                             'description': {
                               'action': 'SET_TEMPERATURE',
-                              'presetTemperature': {'name': 'LOWER_TEMPERATURE', 'temperature': 16}
-                            }
+                              'presetTemperature': {'name': 'LOWER_TEMPERATURE', 'temperature': 16},
+                            },
                           },
                           {
                             'isEnabled': true,
                             'timeSetting': {
                               'time': {'startTime': '06:30:00'},
-                              'dayOfWeek': 'THU'
+                              'dayOfWeek': 'THU',
                             },
                             'description': {
                               'action': 'SET_TEMPERATURE',
-                              'presetTemperature': {'name': 'UPPER_TEMPERATURE', 'temperature': 20}
-                            }
+                              'presetTemperature': {'name': 'UPPER_TEMPERATURE', 'temperature': 20},
+                            },
                           },
                           {
                             'isEnabled': true,
                             'timeSetting': {
                               'time': {'startTime': '08:00:00'},
-                              'dayOfWeek': 'THU'
+                              'dayOfWeek': 'THU',
                             },
                             'description': {
                               'action': 'SET_TEMPERATURE',
-                              'presetTemperature': {'name': 'LOWER_TEMPERATURE', 'temperature': 16}
-                            }
+                              'presetTemperature': {'name': 'LOWER_TEMPERATURE', 'temperature': 16},
+                            },
                           },
                           {
                             'isEnabled': true,
                             'timeSetting': {
                               'time': {'startTime': '18:00:00'},
-                              'dayOfWeek': 'THU'
+                              'dayOfWeek': 'THU',
                             },
                             'description': {
                               'action': 'SET_TEMPERATURE',
-                              'presetTemperature': {'name': 'UPPER_TEMPERATURE', 'temperature': 20}
-                            }
+                              'presetTemperature': {'name': 'UPPER_TEMPERATURE', 'temperature': 20},
+                            },
                           },
                           {
                             'isEnabled': true,
                             'timeSetting': {
                               'time': {'startTime': '22:00:00'},
-                              'dayOfWeek': 'THU'
+                              'dayOfWeek': 'THU',
                             },
                             'description': {
                               'action': 'SET_TEMPERATURE',
-                              'presetTemperature': {'name': 'LOWER_TEMPERATURE', 'temperature': 16}
-                            }
+                              'presetTemperature': {'name': 'LOWER_TEMPERATURE', 'temperature': 16},
+                            },
                           },
                           {
                             'isEnabled': true,
                             'timeSetting': {
                               'time': {'startTime': '06:30:00'},
-                              'dayOfWeek': 'FRI'
+                              'dayOfWeek': 'FRI',
                             },
                             'description': {
                               'action': 'SET_TEMPERATURE',
-                              'presetTemperature': {'name': 'UPPER_TEMPERATURE', 'temperature': 20}
-                            }
+                              'presetTemperature': {'name': 'UPPER_TEMPERATURE', 'temperature': 20},
+                            },
                           },
                           {
                             'isEnabled': true,
                             'timeSetting': {
                               'time': {'startTime': '08:00:00'},
-                              'dayOfWeek': 'FRI'
+                              'dayOfWeek': 'FRI',
                             },
                             'description': {
                               'action': 'SET_TEMPERATURE',
-                              'presetTemperature': {'name': 'LOWER_TEMPERATURE', 'temperature': 16}
-                            }
+                              'presetTemperature': {'name': 'LOWER_TEMPERATURE', 'temperature': 16},
+                            },
                           },
                           {
                             'isEnabled': true,
                             'timeSetting': {
                               'time': {'startTime': '18:00:00'},
-                              'dayOfWeek': 'FRI'
+                              'dayOfWeek': 'FRI',
                             },
                             'description': {
                               'action': 'SET_TEMPERATURE',
-                              'presetTemperature': {'name': 'UPPER_TEMPERATURE', 'temperature': 20}
-                            }
+                              'presetTemperature': {'name': 'UPPER_TEMPERATURE', 'temperature': 20},
+                            },
                           },
                           {
                             'isEnabled': true,
                             'timeSetting': {
                               'time': {'startTime': '22:00:00'},
-                              'dayOfWeek': 'FRI'
+                              'dayOfWeek': 'FRI',
                             },
                             'description': {
                               'action': 'SET_TEMPERATURE',
-                              'presetTemperature': {'name': 'LOWER_TEMPERATURE', 'temperature': 16}
-                            }
+                              'presetTemperature': {'name': 'LOWER_TEMPERATURE', 'temperature': 16},
+                            },
                           },
                           {
                             'isEnabled': true,
                             'timeSetting': {
                               'time': {'startTime': '07:30:00'},
-                              'dayOfWeek': 'SAT'
+                              'dayOfWeek': 'SAT',
                             },
                             'description': {
                               'action': 'SET_TEMPERATURE',
-                              'presetTemperature': {'name': 'UPPER_TEMPERATURE', 'temperature': 20}
-                            }
+                              'presetTemperature': {'name': 'UPPER_TEMPERATURE', 'temperature': 20},
+                            },
                           },
                           {
                             'isEnabled': true,
                             'timeSetting': {
                               'time': {'startTime': '11:30:00'},
-                              'dayOfWeek': 'SAT'
+                              'dayOfWeek': 'SAT',
                             },
                             'description': {
                               'action': 'SET_TEMPERATURE',
-                              'presetTemperature': {'name': 'LOWER_TEMPERATURE', 'temperature': 16}
-                            }
+                              'presetTemperature': {'name': 'LOWER_TEMPERATURE', 'temperature': 16},
+                            },
                           },
                           {
                             'isEnabled': true,
                             'timeSetting': {
                               'time': {'startTime': '17:00:00'},
-                              'dayOfWeek': 'SAT'
+                              'dayOfWeek': 'SAT',
                             },
                             'description': {
                               'action': 'SET_TEMPERATURE',
-                              'presetTemperature': {'name': 'UPPER_TEMPERATURE', 'temperature': 20}
-                            }
+                              'presetTemperature': {'name': 'UPPER_TEMPERATURE', 'temperature': 20},
+                            },
                           },
                           {
                             'isEnabled': true,
                             'timeSetting': {
                               'time': {'startTime': '23:00:00'},
-                              'dayOfWeek': 'SAT'
+                              'dayOfWeek': 'SAT',
                             },
                             'description': {
                               'action': 'SET_TEMPERATURE',
-                              'presetTemperature': {'name': 'LOWER_TEMPERATURE', 'temperature': 16}
-                            }
-                          }
-                        ]
-                      }
-                    ]
+                              'presetTemperature': {'name': 'LOWER_TEMPERATURE', 'temperature': 16},
+                            },
+                          },
+                        ],
+                      },
+                    ],
                   },
                   'holidayActive': false,
                   'mode': 'TARGET_TEMPERATURE',
@@ -461,17 +458,17 @@ void main() {
                     'id': 16,
                     'displayName': 'Wohnzimmerheizung',
                     'skills': [
-                      {'offset': 0, 'type': 'SmartHomeTemperatureSensor', 'currentInCelsius': 19}
+                      {'offset': 0, 'type': 'SmartHomeTemperatureSensor', 'currentInCelsius': 19},
                     ],
-                    'actorIdentificationNumber': '13979 0342035'
-                  }
-                }
+                    'actorIdentificationNumber': '13979 0342035',
+                  },
+                },
               ],
               'interactionControls': [
                 {'devControlName': 'BUTTON', 'isLocked': false},
-                {'devControlName': 'EXTERNAL', 'isLocked': false}
+                {'devControlName': 'EXTERNAL', 'isLocked': false},
               ],
-              'actorIdentificationNumber': '13979 0342035'
+              'actorIdentificationNumber': '13979 0342035',
             },
             {
               'type': 'TEMPERATURE_SENSOR',
@@ -484,12 +481,12 @@ void main() {
                 'id': 16,
                 'manufacturer': {'name': 'AVM'},
                 'actorIdentificationNumber': '13979 0342035',
-                'displayName': 'Wohnzimmerheizung'
+                'displayName': 'Wohnzimmerheizung',
               },
               'skills': [
-                {'offset': 0, 'type': 'SmartHomeTemperatureSensor', 'currentInCelsius': 19}
+                {'offset': 0, 'type': 'SmartHomeTemperatureSensor', 'currentInCelsius': 19},
               ],
-              'actorIdentificationNumber': '13979 0342035'
+              'actorIdentificationNumber': '13979 0342035',
             },
             {
               'type': 'BATTERY',
@@ -502,20 +499,20 @@ void main() {
                 'id': 16,
                 'manufacturer': {'name': 'AVM'},
                 'actorIdentificationNumber': '13979 0342035',
-                'displayName': 'Wohnzimmerheizung'
+                'displayName': 'Wohnzimmerheizung',
               },
               'skills': [
-                {'chargeLevelInPercent': 100, 'type': 'SmartHomeBattery'}
+                {'chargeLevelInPercent': 100, 'type': 'SmartHomeBattery'},
               ],
-              'actorIdentificationNumber': '13979 0342035'
-            }
+              'actorIdentificationNumber': '13979 0342035',
+            },
           ],
           'firmwareVersion': {'search': false, 'current': '05.07', 'update': false, 'running': false},
           'model': 'FRITZ!DECT 302',
           'isEditable': true,
           'manufacturer': {'name': 'AVM'},
           'pushService': {'mailAddress': '', 'unitSettings': [], 'isEnabled': false},
-          'actorIdentificationNumber': '13979 0342035'
+          'actorIdentificationNumber': '13979 0342035',
         },
         {
           'type': 'SmartHomeDevice',
@@ -536,12 +533,12 @@ void main() {
                 'id': 17,
                 'manufacturer': {'name': 'AVM'},
                 'actorIdentificationNumber': '11630 0324586',
-                'displayName': 'Kühlschrank'
+                'displayName': 'Kühlschrank',
               },
               'skills': [
-                {'offset': 0, 'type': 'SmartHomeTemperatureSensor', 'currentInCelsius': 24.5}
+                {'offset': 0, 'type': 'SmartHomeTemperatureSensor', 'currentInCelsius': 24.5},
               ],
-              'actorIdentificationNumber': '11630 0324586'
+              'actorIdentificationNumber': '11630 0324586',
             },
             {
               'type': 'MICROPHONE',
@@ -554,7 +551,7 @@ void main() {
                 'id': 17,
                 'manufacturer': {'name': 'AVM'},
                 'actorIdentificationNumber': '11630 0324586',
-                'displayName': 'Kühlschrank'
+                'displayName': 'Kühlschrank',
               },
               'skills': [
                 {
@@ -570,9 +567,9 @@ void main() {
                           {
                             'isEnabled': false,
                             'timeSetting': {'durationInSeconds': 0},
-                            'description': {'action': 'SET_ON'}
-                          }
-                        ]
+                            'description': {'action': 'SET_ON'},
+                          },
+                        ],
                       },
                       {
                         'isEnabled': false,
@@ -584,23 +581,23 @@ void main() {
                               'endTime': '00:00:00',
                               'startTime': '00:00:00',
                               'startDate': '2019-01-01',
-                              'endDate': '2019-01-01'
+                              'endDate': '2019-01-01',
                             },
-                            'desription': {'action': 'SET_ON'}
-                          }
-                        ]
-                      }
-                    ]
+                            'desription': {'action': 'SET_ON'},
+                          },
+                        ],
+                      },
+                    ],
                   },
                   'isEnabled': false,
                   'trigger': {'action': 'SOUND'},
                   'event': {
                     'description': {'action': 'SET_OFF'},
-                    'targets': []
-                  }
-                }
+                    'targets': [],
+                  },
+                },
               ],
-              'actorIdentificationNumber': '11630 0324586'
+              'actorIdentificationNumber': '11630 0324586',
             },
             {
               'type': 'SOCKET',
@@ -613,7 +610,7 @@ void main() {
                 'id': 17,
                 'manufacturer': {'name': 'AVM'},
                 'actorIdentificationNumber': '11630 0324586',
-                'displayName': 'Kühlschrank'
+                'displayName': 'Kühlschrank',
               },
               'skills': [
                 {
@@ -621,7 +618,7 @@ void main() {
                   'voltageInVolt': 228.904,
                   'powerConsumptionInWatt': 80.39,
                   'powerPerHour': 2357,
-                  'electricCurrentInAmpere': 0.4049
+                  'electricCurrentInAmpere': 0.4049,
                 },
                 {
                   'type': 'SmartHomeSocket',
@@ -638,26 +635,26 @@ void main() {
                           {
                             'isEnabled': false,
                             'timeSetting': {'durationInSeconds': 0},
-                            'name': 'SET_OFF'
-                          }
-                        ]
-                      }
-                    ]
+                            'name': 'SET_OFF',
+                          },
+                        ],
+                      },
+                    ],
                   },
-                  'standby': {'isEnabled': false, 'seconds': 0, 'powerInWatt': 0}
+                  'standby': {'isEnabled': false, 'seconds': 0, 'powerInWatt': 0},
                 },
                 {
                   'state': 'ON',
                   'type': 'SmartHomeSwitch',
-                  'timeControl': {'isEnabled': false, 'timeSchedules': []}
-                }
+                  'timeControl': {'isEnabled': false, 'timeSchedules': []},
+                },
               ],
               'interactionControls': [
                 {'devControlName': 'BUTTON', 'isLocked': false},
-                {'devControlName': 'EXTERNAL', 'isLocked': false}
+                {'devControlName': 'EXTERNAL', 'isLocked': false},
               ],
-              'actorIdentificationNumber': '11630 0324586'
-            }
+              'actorIdentificationNumber': '11630 0324586',
+            },
           ],
           'firmwareVersion': {'search': false, 'current': '04.25', 'update': false, 'running': false},
           'model': 'FRITZ!DECT 200',
@@ -668,13 +665,13 @@ void main() {
             'unitSettings': [],
             'isEnabled': false,
             'switchTrigger': false,
-            'energyStatistic': 'MIN10'
+            'energyStatistic': 'MIN10',
           },
-          'actorIdentificationNumber': '11630 0324586'
-        }
-      ]
+          'actorIdentificationNumber': '11630 0324586',
+        },
+      ],
     },
-    'sid': '62fa82bdc8ef52cd'
+    'sid': '62fa82bdc8ef52cd',
   };
 
   group('Parse json results', () {

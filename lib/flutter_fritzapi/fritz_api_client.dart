@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_fritzapi/flutter_fritzapi/model/devices.dart';
 import 'package:flutter_fritzapi/flutter_fritzapi/model/energy_stats.dart';
 import 'package:flutter_fritzapi/flutter_fritzapi/model/network_counters.dart';
+import 'package:flutter_fritzapi/flutter_fritzapi/model/sensor_history.dart';
 import 'package:flutter_fritzapi/flutter_fritzapi/model/wifi_client.dart';
 import 'package:flutter_fritzapi/flutter_fritzapi/utils/xml_select.dart';
 
@@ -114,14 +115,26 @@ abstract class FritzApiClient {
     assert(sessionId != null && sessionId!.isNotEmpty, 'SessionId must not be null or empty');
 
     final List<Uri> candidates = <Uri>[
+      Uri.parse('$baseUrl/internet/inetstat_monitor.lua?sid=${sessionId!}&useajax=1&xhr=1&action=DataRefresh'),
+      Uri.parse('$baseUrl/internet/inetstat_monitor.lua?sid=${sessionId!}&xhr=1'),
       Uri.parse('$baseUrl/internet/inetstat_monitor.lua?sid=${sessionId!}&useajax=1'),
       Uri.parse('$baseUrl/internet/inetstat_monitor.lua?sid=${sessionId!}'),
       Uri.parse('$baseUrl/online-monitor/online-counter'),
+      Uri.parse('$baseUrl/data.lua?page=overview&sid=${sessionId!}&xhr=1'),
     ];
 
     for (final Uri url in candidates) {
       try {
-        final FritzApiResponse response = await get(url, headers: const <String, String>{});
+        FritzApiResponse response;
+        if (url.path.endsWith('data.lua')) {
+          response = await post(
+            url,
+            headers: const <String, String>{},
+            body: <String, String>{'sid': sessionId!, 'xhr': '1', 'page': 'overview'},
+          );
+        } else {
+          response = await get(url, headers: const <String, String>{});
+        }
         final Map<String, dynamic>? decoded = _tryDecodeJsonMap(response.body);
         if (decoded == null) {
           continue;
@@ -137,6 +150,67 @@ abstract class FritzApiClient {
 
     return null;
   }
+
+  /// Retrieves power history across several ranges.
+  Future<PowerHistory?> getPowerHistory(int deviceId, {List<HistoryRange> ranges = HistoryRange.values}) async {
+    assert(sessionId != null && sessionId!.isNotEmpty, 'SessionId must not be null or empty');
+    EnergyStats? day;
+    EnergyStats? week;
+    EnergyStats? month;
+    EnergyStats? twoYears;
+
+    for (final HistoryRange range in ranges) {
+      final HomeAutoQueryCommand? command = _energyCommandForRange(range);
+      if (command == null) {
+        continue;
+      }
+      final EnergyStats? stats = await getEnergyStats(command: command, deviceId: deviceId);
+      if (stats == null) {
+        continue;
+      }
+      switch (range) {
+        case HistoryRange.day:
+          day = stats;
+          break;
+        case HistoryRange.week:
+          week = stats;
+          break;
+        case HistoryRange.month:
+          month = stats;
+          break;
+        case HistoryRange.twoYears:
+          twoYears = stats;
+          break;
+      }
+    }
+
+    final PowerHistory history = PowerHistory(day: day, week: week, month: month, twoYears: twoYears);
+    return history.isEmpty ? null : history;
+  }
+
+  /// Retrieves temperature history for a device for the requested ranges.
+  Future<Map<HistoryRange, SensorHistory>> getTemperatureHistory(
+    int deviceId, {
+    List<HistoryRange> ranges = const <HistoryRange>[HistoryRange.day],
+  }) => _getSensorHistory(
+    baseUrl: baseUrl,
+    sessionId: sessionId!,
+    deviceId: deviceId,
+    ranges: ranges,
+    type: SensorStatType.temperature,
+  );
+
+  /// Retrieves humidity history for a device for the requested ranges.
+  Future<Map<HistoryRange, SensorHistory>> getHumidityHistory(
+    int deviceId, {
+    List<HistoryRange> ranges = const <HistoryRange>[HistoryRange.day],
+  }) => _getSensorHistory(
+    baseUrl: baseUrl,
+    sessionId: sessionId!,
+    deviceId: deviceId,
+    ranges: ranges,
+    type: SensorStatType.humidity,
+  );
 
   /// Returns a list of Wi‑Fi clients reported by the FRITZ!Box.
   Future<List<WifiClient>> getWifiClients() async {
@@ -183,6 +257,159 @@ abstract class FritzApiClient {
   Future<FritzApiResponse> get(Uri url, {Map<String, String>? headers});
 
   Future<FritzApiResponse> post(Uri url, {Map<String, String>? headers, required Map<String, String> body});
+
+  HomeAutoQueryCommand? _energyCommandForRange(HistoryRange range) {
+    switch (range) {
+      case HistoryRange.day:
+        return HomeAutoQueryCommand.EnergyStats_24h;
+      case HistoryRange.week:
+        return HomeAutoQueryCommand.EnergyStats_week;
+      case HistoryRange.month:
+        return HomeAutoQueryCommand.EnergyStats_month;
+      case HistoryRange.twoYears:
+        return HomeAutoQueryCommand.EnergyStats_2years;
+    }
+  }
+
+  /// Tries to decode a JSON object and returns `null` on failure.
+  Map<String, dynamic>? _tryDecodeJsonMap(String body) {
+    try {
+      final dynamic decoded = jsonDecode(body);
+      if (decoded is Map<String, dynamic>) {
+        return decoded;
+      }
+    } catch (_) {
+      // Ignore primary decode errors and try to salvage JSON below.
+    }
+    // Attempt to salvage JSON by trimming leading JS assignments or non-JSON data.
+    final int firstBrace = body.indexOf('{');
+    if (firstBrace != -1) {
+      try {
+        final String trimmed = body.substring(firstBrace);
+        final dynamic decoded = jsonDecode(trimmed);
+        if (decoded is Map<String, dynamic>) {
+          return decoded;
+        }
+      } catch (_) {
+        // Continue to next fallback.
+      }
+    }
+    final int firstBracket = body.indexOf('[');
+    if (firstBracket != -1) {
+      try {
+        final String trimmed = body.substring(firstBracket);
+        final dynamic decoded = jsonDecode(trimmed);
+        if (decoded is Map<String, dynamic>) {
+          return decoded;
+        }
+      } catch (_) {
+        // Ignore.
+      }
+    }
+    return null;
+  }
+
+  Future<Map<HistoryRange, SensorHistory>> _getSensorHistory({
+    required String baseUrl,
+    required String sessionId,
+    required int deviceId,
+    required List<HistoryRange> ranges,
+    required SensorStatType type,
+  }) async {
+    assert(sessionId.isNotEmpty, 'SessionId must not be null or empty');
+
+    final Map<HistoryRange, SensorHistory> result = <HistoryRange, SensorHistory>{};
+    for (final HistoryRange range in ranges) {
+      final String command = _sensorCommand(type, range);
+      final Map<String, dynamic>? payload = await _getHomeAutoStats(
+        baseUrl: baseUrl,
+        sessionId: sessionId,
+        command: command,
+        deviceId: deviceId,
+      );
+      if (payload == null) {
+        continue;
+      }
+      final SensorHistory? parsed = _parseSensorHistory(payload, type: type, range: range);
+      if (parsed != null) {
+        result[range] = parsed;
+      }
+    }
+    return result;
+  }
+
+  String _sensorCommand(SensorStatType type, HistoryRange range) {
+    final String prefix = switch (type) {
+      SensorStatType.temperature => 'TemperatureStats',
+      SensorStatType.humidity => 'HumidityStats',
+    };
+    final String suffix = switch (range) {
+      HistoryRange.day => '24h',
+      HistoryRange.week => 'week',
+      HistoryRange.month => 'month',
+      HistoryRange.twoYears => '2years',
+    };
+    return '${prefix}_$suffix';
+  }
+
+  Future<Map<String, dynamic>?> _getHomeAutoStats({
+    required String baseUrl,
+    required String sessionId,
+    required String command,
+    required int deviceId,
+  }) async {
+    assert(sessionId.isNotEmpty, 'SessionId must not be null or empty');
+    final Uri url = Uri.parse('$baseUrl/net/home_auto_query.lua?sid=$sessionId&command=$command&id=$deviceId&xhr=1');
+    final FritzApiResponse response = await get(url, headers: const <String, String>{});
+    return _tryDecodeJsonMap(response.body);
+  }
+
+  SensorHistory? _parseSensorHistory(
+    Map<String, dynamic> json, {
+    required SensorStatType type,
+    required HistoryRange range,
+  }) {
+    Map<String, dynamic>? statMap;
+    for (final String key in <String>['TemperatureStat', 'HumidityStat', 'EnergyStat', 'stat', 'data']) {
+      if (json[key] is Map<String, dynamic>) {
+        statMap = Map<String, dynamic>.from(json[key] as Map<String, dynamic>);
+        break;
+      }
+    }
+    statMap ??= json;
+    final List<double> values = _extractNumericList(statMap['values'] ?? statMap['data'] ?? statMap['list']);
+    if (values.isEmpty) {
+      return null;
+    }
+    final int? intervalSeconds = _asInt(statMap['times_type'] ?? statMap['interval'] ?? statMap['timeframe']);
+    final int? level = _asInt(statMap['ebene'] ?? statMap['level']);
+    return SensorHistory(
+      type: type,
+      range: range,
+      values: values,
+      intervalSeconds: intervalSeconds,
+      level: level,
+      raw: json,
+    );
+  }
+
+  List<double> _extractNumericList(dynamic raw) {
+    if (raw is List) {
+      return raw
+          .map((dynamic v) {
+            if (v is num) {
+              return v.toDouble();
+            }
+            if (v is String) {
+              return double.tryParse(v);
+            }
+            return null;
+          })
+          .whereType<double>()
+          .toList();
+    }
+    return const <double>[];
+  }
 }
 
 class FritzApiResponse {
@@ -195,17 +422,168 @@ class FritzApiResponse {
 
 enum HomeAutoQueryCommand { EnergyStats_24h, EnergyStats_week, EnergyStats_month, EnergyStats_2years }
 
-/// Tries to decode a JSON object and returns `null` on failure.
-Map<String, dynamic>? _tryDecodeJsonMap(String body) {
-  try {
-    final dynamic decoded = jsonDecode(body);
-    if (decoded is Map<String, dynamic>) {
-      return decoded;
+/// Parses clients from the `/data.lua?page=netDev` response structure.
+List<WifiClient> parseWifiClients(Map<String, dynamic> data) {
+  final List<WifiClient> clients = <WifiClient>[];
+  const List<String> preferredKeys = <String>['active', 'passive', 'anmd'];
+
+  void parseList(dynamic value) {
+    if (value is! List) {
+      return;
     }
-  } catch (_) {
-    // Ignore decode errors to allow caller to try alternative endpoints.
+    for (final dynamic entry in value) {
+      if (entry is! Map<String, dynamic>) {
+        continue;
+      }
+      final Map<String, dynamic>? ipv4Map = entry['ipv4'] is Map<String, dynamic>
+          ? Map<String, dynamic>.from(entry['ipv4'] as Map<String, dynamic>)
+          : null;
+      final String name = _wifiClientName(entry);
+      final String? ip = _asString(entry['ip'] ?? ipv4Map?['ip'] ?? entry['ipv4']);
+      final String? mac = _asString(entry['mac'] ?? entry['wlanMAC']);
+      final String? connectionType = _asString(entry['type'] ?? entry['connectionType']);
+      final bool isOnline = entry['active'] == true || entry['isActive'] == true || entry['connected'] == true;
+      final DateTime? lastSeen = _asDateTime(
+        entry['lastused'] ?? entry['lastSeen'] ?? entry['lastUsed'] ?? ipv4Map?['lastused'],
+      );
+      final properties2_4 = (entry['properties'] as List<dynamic>)
+          .where((dynamic item) {
+            return item.containsKey('txt') && (item['txt'].startsWith('2,4 GHz'));
+          })
+          .map((item) => item['txt']);
+      final properties5 = (entry['properties'] as List<dynamic>)
+          .where((dynamic item) {
+            return item.containsKey('txt') && (item['txt'].startsWith('5 GHz'));
+          })
+          .map((item) => item['txt']);
+      final properties6 = (entry['properties'] as List<dynamic>)
+          .where((dynamic item) {
+            return item.containsKey('txt') && (item['txt'].startsWith('6 GHz'));
+          })
+          .map((item) => item['txt']);
+      clients.add(
+        WifiClient(
+          name: name,
+          ip: ip,
+          mac: mac,
+          connectionType: connectionType,
+          isOnline: isOnline,
+          raw: entry,
+          lastSeen: lastSeen,
+          radioChannel2_4: properties2_4.isEmpty ? null : properties2_4.first,
+          radioChannel5: properties5.isEmpty ? null : properties5.first,
+          radioChannel6: properties6.isEmpty ? null : properties6.first,
+        ),
+      );
+    }
+  }
+
+  for (final String key in preferredKeys) {
+    parseList(data[key]);
+  }
+
+  data.forEach((String key, dynamic value) {
+    if (!preferredKeys.contains(key)) {
+      parseList(value);
+    }
+  });
+
+  return clients;
+}
+
+Map<String, dynamic>? _parsePropertiesTxt(dynamic rawProperties) {
+  if (rawProperties is! List) {
+    return null;
+  }
+  final Map<String, dynamic> result = <String, dynamic>{};
+  for (final dynamic item in rawProperties) {
+    if (item is! Map<String, dynamic>) {
+      continue;
+    }
+    final String? txt = _asString(item['txt']);
+    if (txt == null || txt.isEmpty) {
+      continue;
+    }
+    final Map<String, dynamic> parsed = _parseWifiTxtEntry(txt);
+    result.addAll(parsed);
+  }
+  return result.isEmpty ? null : result;
+}
+
+Map<String, dynamic> _parseWifiTxtEntry(String txt) {
+  final Map<String, dynamic> result = <String, dynamic>{};
+  final List<String> parts = txt.split(',');
+  String? band;
+  String? speedsPart;
+  if (parts.isNotEmpty) {
+    band = parts.first.trim();
+    if (parts.length > 1) {
+      speedsPart = parts.sublist(1).join(',').trim();
+    }
+  }
+  if (band != null) {
+    if (band.contains('5')) {
+      result['channel5'] = band;
+    } else if (band.contains('2,4') || band.contains('2.4')) {
+      result['channel24'] = band;
+    }
+  }
+  if (speedsPart != null && speedsPart.contains('/')) {
+    final List<String> speedSplit = speedsPart.split('/');
+    if (speedSplit.length >= 2) {
+      result['download'] = speedSplit[0].trim();
+      result['upload'] = speedSplit[1].trim();
+    }
+  }
+  return result;
+}
+
+String _wifiClientName(Map<String, dynamic> entry) {
+  final List<dynamic> candidates = <dynamic>[
+    entry['name'],
+    (entry['details'] is Map<String, dynamic>) ? (entry['details'] as Map<String, dynamic>)['name'] : null,
+    entry['ip'],
+    entry['ipv4'] is Map<String, dynamic> ? (entry['ipv4'] as Map<String, dynamic>)['ip'] : entry['ipv4'],
+  ];
+  for (final dynamic candidate in candidates) {
+    final String? value = _asString(candidate);
+    if (value != null && value.isNotEmpty) {
+      return value;
+    }
+  }
+  return 'Unknown device';
+}
+
+String? _asString(dynamic value) {
+  if (value == null) {
+    return null;
+  }
+  if (value is String) {
+    return value;
+  }
+  return value.toString();
+}
+
+int? _asInt(dynamic value) {
+  if (value is num) {
+    return value.toInt();
+  }
+  if (value is String) {
+    return int.tryParse(value);
   }
   return null;
+}
+
+DateTime? _asDateTime(dynamic value) {
+  final int? raw = _asInt(value);
+  if (raw == null) {
+    return null;
+  }
+  // Heuristic: treat >= 1e12 as milliseconds, otherwise seconds.
+  final DateTime dateTime = raw > 1000000000000
+      ? DateTime.fromMillisecondsSinceEpoch(raw)
+      : DateTime.fromMillisecondsSinceEpoch(raw * 1000);
+  return dateTime.toUtc();
 }
 
 /// Extracts counters for bytes sent/received from the FRITZ!Box JSON response.
@@ -235,9 +613,7 @@ NetworkCounters? extractNetworkCounters(Map<String, dynamic> json) {
         }
       });
     } else if (value is Iterable) {
-      for (final dynamic child in value) {
-        walk(child);
-      }
+      value.forEach(walk);
     }
   }
 
@@ -262,77 +638,4 @@ NetworkCounters? extractNetworkCounters(Map<String, dynamic> json) {
   }
 
   return NetworkCounters(totalBytes: total, bytesSent: sent, bytesReceived: received, raw: json);
-}
-
-/// Parses clients from the `/data.lua?page=netDev` response structure.
-List<WifiClient> parseWifiClients(Map<String, dynamic> data) {
-  final List<WifiClient> clients = <WifiClient>[];
-  const List<String> preferredKeys = <String>['active', 'passive', 'anmd'];
-
-  void parseList(dynamic value) {
-    if (value is! List) {
-      return;
-    }
-    for (final dynamic entry in value) {
-      if (entry is! Map<String, dynamic>) {
-        continue;
-      }
-      final String name = _wifiClientName(entry);
-      final String? ip = _asString(entry['ip'] ?? entry['ipv4']);
-      final String? mac = _asString(entry['mac'] ?? entry['wlanMAC']);
-      final String? connectionType = _asString(entry['type'] ?? entry['connectionType']);
-      final bool isOnline = entry['active'] == true || entry['isActive'] == true || entry['connected'] == true;
-      clients.add(
-        WifiClient(name: name, ip: ip, mac: mac, connectionType: connectionType, isOnline: isOnline, raw: entry),
-      );
-    }
-  }
-
-  for (final String key in preferredKeys) {
-    parseList(data[key]);
-  }
-
-  data.forEach((String key, dynamic value) {
-    if (!preferredKeys.contains(key)) {
-      parseList(value);
-    }
-  });
-
-  return clients;
-}
-
-String _wifiClientName(Map<String, dynamic> entry) {
-  final List<dynamic> candidates = <dynamic>[
-    entry['name'],
-    (entry['details'] is Map<String, dynamic>) ? (entry['details'] as Map<String, dynamic>)['name'] : null,
-    entry['ip'],
-    entry['ipv4'],
-  ];
-  for (final dynamic candidate in candidates) {
-    final String? value = _asString(candidate);
-    if (value != null && value.isNotEmpty) {
-      return value;
-    }
-  }
-  return 'Unknown device';
-}
-
-String? _asString(dynamic value) {
-  if (value == null) {
-    return null;
-  }
-  if (value is String) {
-    return value;
-  }
-  return value.toString();
-}
-
-int? _asInt(dynamic value) {
-  if (value is num) {
-    return value.toInt();
-  }
-  if (value is String) {
-    return int.tryParse(value);
-  }
-  return null;
 }

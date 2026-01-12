@@ -16,7 +16,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       locale: const Locale('de'),
-      onGenerateTitle: (BuildContext context) => AppLocalizations.of(context)!.appTitle,
+      onGenerateTitle: (BuildContext context) => AppLocalizations.of(context).appTitle,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
       theme: ThemeData(primarySwatch: Colors.blue),
@@ -51,7 +51,7 @@ class _MyHomePageState extends State<MyHomePage> {
   List<Device> _devices = <Device>[];
   final Map<String, _DataType> _selectedCapabilities = <String, _DataType>{};
 
-  AppLocalizations get l10n => AppLocalizations.of(context)!;
+  AppLocalizations get l10n => AppLocalizations.of(context);
 
   @override
   void initState() {
@@ -213,7 +213,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
   List<_DataType> _capabilitiesForDevice(Device? device, {required bool isRouter}) {
     if (isRouter) {
-      return const <_DataType>[_DataType.onlineCounter];
+      return const <_DataType>[_DataType.onlineCounter, _DataType.wifiClients];
     }
     if (device == null) {
       return const <_DataType>[];
@@ -304,6 +304,39 @@ class _MyHomePageState extends State<MyHomePage> {
                   ],
                 );
               }
+              final _DataPayload? data = snapshot.data;
+              if (type == _DataType.wifiClients && data?.wifiClients != null) {
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      l10n.dataSheetTitle(deviceName, type.label(l10n)),
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(data!.current),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      height: 420,
+                      child: ListView.separated(
+                        shrinkWrap: true,
+                        itemBuilder: (BuildContext context, int index) {
+                          final WifiClient client = data.wifiClients![index];
+                          return _buildWifiClientTile(client);
+                        },
+                        separatorBuilder: (_, __) => const SizedBox(height: 8),
+                        itemCount: data.wifiClients!.length,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(onPressed: () => Navigator.pop(context), child: Text(l10n.closeButton)),
+                    ),
+                  ],
+                );
+              }
               return Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -313,12 +346,12 @@ class _MyHomePageState extends State<MyHomePage> {
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                   const SizedBox(height: 16),
-                  Text(snapshot.data?.current ?? l10n.noData),
-                  if (snapshot.data?.history != null) ...<Widget>[
+                  Text(data?.current ?? l10n.noData),
+                  if (data?.history != null) ...<Widget>[
                     const SizedBox(height: 12),
                     Text(l10n.historyTitle, style: Theme.of(context).textTheme.titleSmall),
                     const SizedBox(height: 4),
-                    Text(snapshot.data!.history!),
+                    Text(data!.history!),
                   ],
                   const SizedBox(height: 12),
                   Align(
@@ -375,7 +408,15 @@ class _MyHomePageState extends State<MyHomePage> {
         if (value == null) {
           throw StateError(l10n.noTemperature);
         }
-        return _DataPayload(current: l10n.currentTemperature(value.toStringAsFixed(1)));
+        final Map<HistoryRange, SensorHistory> histories = await client.getTemperatureHistory(
+          effective.id,
+          ranges: HistoryRange.values,
+        );
+        final String historyText = _formatSensorHistory(histories, unit: '°C');
+        return _DataPayload(
+          current: l10n.currentTemperature(value.toStringAsFixed(1)),
+          history: historyText.isEmpty ? null : historyText,
+        );
       case _DataType.humidity:
         if (device == null) {
           throw StateError(l10n.noDeviceSelected);
@@ -385,7 +426,15 @@ class _MyHomePageState extends State<MyHomePage> {
         if (value == null) {
           throw StateError(l10n.noHumidity);
         }
-        return _DataPayload(current: l10n.currentHumidity(value.toStringAsFixed(1)));
+        final Map<HistoryRange, SensorHistory> histories = await client.getHumidityHistory(
+          effective.id,
+          ranges: HistoryRange.values,
+        );
+        final String historyText = _formatSensorHistory(histories, unit: '%');
+        return _DataPayload(
+          current: l10n.currentHumidity(value.toStringAsFixed(1)),
+          history: historyText.isEmpty ? null : historyText,
+        );
       case _DataType.power:
         if (device == null) {
           throw StateError(l10n.noDeviceSelected);
@@ -395,14 +444,160 @@ class _MyHomePageState extends State<MyHomePage> {
         if (value == null) {
           throw StateError(l10n.noPower);
         }
-        final EnergyStats? stats = await client.getEnergyStats(
-          command: HomeAutoQueryCommand.EnergyStats_24h,
-          deviceId: effective.id,
+        final PowerHistory? history = await client.getPowerHistory(effective.id, ranges: HistoryRange.values);
+        final String historyText = _formatPowerHistory(history);
+        return _DataPayload(
+          current: l10n.currentPower(value.toStringAsFixed(1)),
+          history: historyText.isEmpty ? l10n.historyEnergyMissing : historyText,
         );
-        final String history = stats == null
-            ? l10n.historyEnergyMissing
-            : l10n.historyEnergy(stats.sumDay.toString(), stats.sumMonth.toString(), stats.sumYear.toString());
-        return _DataPayload(current: l10n.currentPower(value.toStringAsFixed(1)), history: history);
+      case _DataType.wifiClients:
+        final List<WifiClient> clients = await client.getWifiClients();
+        if (clients.isEmpty) {
+          throw StateError(l10n.noWifiClients);
+        }
+        return _DataPayload(current: l10n.wifiClientCount(clients.length.toString()), wifiClients: clients);
+    }
+  }
+
+  String _formatSensorHistory(Map<HistoryRange, SensorHistory> histories, {required String unit}) {
+    if (histories.isEmpty) {
+      return '';
+    }
+    final StringBuffer sb = StringBuffer();
+    histories.forEach((HistoryRange range, SensorHistory history) {
+      final double? avg = history.average;
+      if (avg != null) {
+        sb.writeln(l10n.historySensorEntry(_rangeLabel(range), '${avg.toStringAsFixed(1)} $unit'));
+      }
+    });
+    return sb.toString().trim();
+  }
+
+  String _formatPowerHistory(PowerHistory? history) {
+    if (history == null) {
+      return '';
+    }
+    final StringBuffer sb = StringBuffer();
+    if (history.day != null) {
+      sb.writeln(l10n.historyPowerEntry(_rangeLabel(HistoryRange.day), history.day!.sumDay.toString()));
+    }
+    if (history.week != null) {
+      final int weekTotal = history.week!.energyStat.values.fold(0, (int a, int b) => a + b);
+      sb.writeln(l10n.historyPowerEntry(_rangeLabel(HistoryRange.week), weekTotal.toString()));
+    }
+    if (history.month != null) {
+      sb.writeln(l10n.historyPowerEntry(_rangeLabel(HistoryRange.month), history.month!.sumMonth.toString()));
+    }
+    if (history.twoYears != null) {
+      sb.writeln(l10n.historyPowerEntry(_rangeLabel(HistoryRange.twoYears), history.twoYears!.sumYear.toString()));
+    }
+    return sb.toString().trim();
+  }
+
+  String _rangeLabel(HistoryRange range) {
+    switch (range) {
+      case HistoryRange.day:
+        return l10n.rangeDay;
+      case HistoryRange.week:
+        return l10n.rangeWeek;
+      case HistoryRange.month:
+        return l10n.rangeMonth;
+      case HistoryRange.twoYears:
+        return l10n.rangeTwoYears;
+    }
+  }
+
+  Widget _buildWifiClientTile(WifiClient client) {
+    final String lastSeen = _formatLastSeen(client.lastSeen);
+    final String channel2_4 = client.radioChannel2_4 != null ? client.radioChannel2_4! : '';
+    final String channel5 = client.radioChannel5 != null ? client.radioChannel5! : '';
+    final String channel6 = client.radioChannel6 != null ? client.radioChannel6! : '';
+    final String txtInfo =
+        '${channel2_4.isEmpty ? '' : channel2_4} ${channel5.isEmpty ? '' : '${channel2_4.isNotEmpty ? ', ' : ''}$channel5'} ${channel6.isEmpty ? '' : '${channel2_4.isNotEmpty || channel5.isNotEmpty ? ', ' : ''}$channel6'}';
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Row(
+              children: <Widget>[
+                Icon(_wifiIcon(client), color: Colors.blueGrey),
+                const SizedBox(width: 8),
+                Expanded(child: Text(client.name, style: Theme.of(context).textTheme.titleMedium)),
+                if (client.isOnline)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.green.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(l10n.wifiClientOnline, style: TextStyle(color: Colors.green)),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 12,
+              runSpacing: 4,
+              children: <Widget>[
+                Text('${l10n.wifiIpLabel}: ${client.ip ?? '-'}'),
+                Text('${l10n.wifiMacLabel}: ${client.mac ?? '-'}'),
+                Text('${l10n.wifiLastSeenLabel}: $lastSeen'),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text('${l10n.wifiTxtLabel}: $txtInfo'),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _formatLastSeen(DateTime? time) {
+    if (time == null) {
+      return l10n.wifiLastSeenUnknown;
+    }
+    final Duration diff = DateTime.now().toUtc().difference(time);
+    if (diff.inMinutes < 1) {
+      return l10n.wifiLastSeenNow;
+    }
+    if (diff.inHours < 1) {
+      return l10n.wifiLastSeenMinutes(diff.inMinutes.toString());
+    }
+    if (diff.inDays < 1) {
+      return l10n.wifiLastSeenHours(diff.inHours.toString());
+    }
+    return l10n.wifiLastSeenDays(diff.inDays.toString());
+  }
+
+  IconData _wifiIcon(WifiClient client) {
+    switch (client.deviceType) {
+      case WifiDeviceType.smartphone:
+        return Icons.smartphone;
+      case WifiDeviceType.tablet:
+        return Icons.tablet;
+      case WifiDeviceType.computer:
+        return Icons.computer;
+      case WifiDeviceType.security_camera:
+        return Icons.videocam;
+      case WifiDeviceType.speaker:
+        return Icons.speaker;
+      case WifiDeviceType.fritz_repeater:
+        return Icons.router;
+      case WifiDeviceType.google_chromecast:
+        return Icons.tv;
+      case WifiDeviceType.television:
+        return Icons.tv_outlined;
+      case WifiDeviceType.tp_tapo_plug:
+        return Icons.power;
+      case WifiDeviceType.gamingConsole:
+        return Icons.sports_esports;
+      case WifiDeviceType.fritz_box:
+        return Icons.router;
+      case WifiDeviceType.unknown:
+      default:
+        return Icons.devices_other;
     }
   }
 
@@ -643,7 +838,7 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 }
 
-enum _DataType { temperature, humidity, power, onlineCounter }
+enum _DataType { temperature, humidity, power, onlineCounter, wifiClients }
 
 extension on _DataType {
   String label(AppLocalizations l10n) {
@@ -656,6 +851,8 @@ extension on _DataType {
         return l10n.powerLabel;
       case _DataType.onlineCounter:
         return l10n.onlineCounterLabel;
+      case _DataType.wifiClients:
+        return l10n.wifiClientsLabel;
     }
   }
 
@@ -669,13 +866,16 @@ extension on _DataType {
         return Icons.bolt;
       case _DataType.onlineCounter:
         return Icons.network_check;
+      case _DataType.wifiClients:
+        return Icons.wifi;
     }
   }
 }
 
 class _DataPayload {
-  const _DataPayload({required this.current, this.history});
+  const _DataPayload({required this.current, this.history, this.wifiClients});
 
   final String current;
   final String? history;
+  final List<WifiClient>? wifiClients;
 }

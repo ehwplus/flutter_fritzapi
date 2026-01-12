@@ -1,6 +1,17 @@
 /// Represents a Wi‑Fi client known to the FRITZ!Box.
 class WifiClient {
-  const WifiClient({required this.name, this.ip, this.mac, this.connectionType, this.isOnline = false, this.raw});
+  const WifiClient({
+    required this.name,
+    this.ip,
+    this.mac,
+    this.connectionType,
+    this.isOnline = false,
+    this.raw,
+    this.lastSeen,
+    this.radioChannel2_4,
+    this.radioChannel5,
+    this.radioChannel6,
+  });
 
   /// Human readable device name or fallback.
   final String name;
@@ -20,6 +31,13 @@ class WifiClient {
   /// Raw payload that originated this client entry.
   final Map<String, dynamic>? raw;
 
+  /// Last time the device was seen by the FRITZ!Box.
+  final DateTime? lastSeen;
+
+  final String? radioChannel2_4;
+  final String? radioChannel5;
+  final String? radioChannel6;
+
   /// Try to resolve device type
   WifiDeviceType? get deviceType => WifiDeviceType.fromDeviceName(name);
 }
@@ -31,6 +49,7 @@ enum WifiDeviceType {
   computer,
   tp_tapo_plug,
   fritz_repeater,
+  fritz_box,
   speaker,
   google_chromecast,
   television,
@@ -46,15 +65,17 @@ enum WifiDeviceType {
         return speaker;
       } else if (deviceName.contains('chromecast')) {
         return google_chromecast;
-      } else if (deviceName.contains('webOS')) {
+      } else if (deviceName.contains('webos') || deviceName.contains('tv')) {
         return television;
       } else if (deviceName.contains('xbox')) {
         return gamingConsole;
-      } else if (deviceName.contains('macbox') || deviceName.contains('pc') || deviceName.contains('laptop')) {
+      } else if (deviceName.contains('macbook') || deviceName.contains('pc') || deviceName.contains('laptop')) {
         return computer;
       } else if (deviceName.contains('fritz!repeater')) {
         return fritz_repeater;
-      } else if (deviceName.contains('fritz!repeater')) {
+      } else if (deviceName.contains('fritz!box')) {
+        return fritz_box;
+      } else if (deviceName.contains('tp tapo p')) {
         return tp_tapo_plug;
       } else if (!deviceName.contains('pad') &&
           (deviceName.contains('android') || deviceName.contains('honor-magic'))) {

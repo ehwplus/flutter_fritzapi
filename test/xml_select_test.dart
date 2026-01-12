@@ -1,6 +1,3 @@
-import 'dart:convert';
-
-import 'package:flutter_fritzapi/flutter_fritzapi/model/energy_stats.dart';
 import 'package:flutter_fritzapi/flutter_fritzapi/utils/xml_select.dart';
 import 'package:test/test.dart';
 
