@@ -349,7 +349,18 @@ class _MyHomePageState extends State<MyHomePage> {
                     const SizedBox(height: 12),
                     Text(l10n.historyTitle, style: Theme.of(context).textTheme.titleSmall),
                     const SizedBox(height: 4),
-                    Text(data!.history!),
+                    Container(
+                      constraints: const BoxConstraints(maxHeight: 240),
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.grey.shade300),
+                      ),
+                      child: SingleChildScrollView(
+                        child: Text(data!.history!, style: const TextStyle(fontFamily: 'monospace', fontSize: 12)),
+                      ),
+                    ),
                   ],
                   if (data?.raw != null) ...<Widget>[const SizedBox(height: 12), _buildRawSection(data!.raw!)],
                   const SizedBox(height: 12),
@@ -408,11 +419,15 @@ class _MyHomePageState extends State<MyHomePage> {
         if (value == null) {
           throw StateError(l10n.noTemperature);
         }
-        final Map<HistoryRange, SensorHistory> histories = await client.getTemperatureHistory(
+        final Map<SensorHistoryInterval, EnvironmentReadings> histories = await client.getEnvironmentHistory(
           effective.id,
-          ranges: HistoryRange.values,
+          ranges: const <SensorHistoryInterval>[SensorHistoryInterval.day],
         );
-        final String historyText = _formatSensorHistory(histories, unit: '°C');
+        final String historyText = _formatEnvironmentHistory(
+          histories,
+          unit: '°C',
+          isTemperature: true,
+        );
         return _DataPayload(
           current: l10n.currentTemperature(value.toStringAsFixed(1)),
           history: historyText.isEmpty ? null : historyText,
@@ -427,11 +442,15 @@ class _MyHomePageState extends State<MyHomePage> {
         if (value == null) {
           throw StateError(l10n.noHumidity);
         }
-        final Map<HistoryRange, SensorHistory> histories = await client.getHumidityHistory(
+        final Map<SensorHistoryInterval, EnvironmentReadings> histories = await client.getEnvironmentHistory(
           effective.id,
-          ranges: HistoryRange.values,
+          ranges: const <SensorHistoryInterval>[SensorHistoryInterval.day],
         );
-        final String historyText = _formatSensorHistory(histories, unit: '%');
+        final String historyText = _formatEnvironmentHistory(
+          histories,
+          unit: '%',
+          isTemperature: false,
+        );
         return _DataPayload(
           current: l10n.currentHumidity(value.toStringAsFixed(1)),
           history: historyText.isEmpty ? null : historyText,
@@ -446,7 +465,7 @@ class _MyHomePageState extends State<MyHomePage> {
         if (value == null) {
           throw StateError(l10n.noPower);
         }
-        final PowerHistory? history = await client.getPowerHistory(effective.id, ranges: HistoryRange.values);
+        final PowerHistory? history = await client.getPowerHistory(effective.id, ranges: SensorHistoryInterval.values);
         final String historyText = _formatPowerHistory(history);
         return _DataPayload(
           current: l10n.currentPower(value.toStringAsFixed(1)),
@@ -462,12 +481,12 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
-  String _formatSensorHistory(Map<HistoryRange, SensorHistory> histories, {required String unit}) {
+  String _formatSensorHistory(Map<SensorHistoryInterval, SensorHistory> histories, {required String unit}) {
     if (histories.isEmpty) {
       return '';
     }
     final StringBuffer sb = StringBuffer();
-    histories.forEach((HistoryRange range, SensorHistory history) {
+    histories.forEach((SensorHistoryInterval range, SensorHistory history) {
       final double? avg = history.average;
       if (avg != null) {
         sb.writeln(l10n.historySensorEntry(_rangeLabel(range), '${avg.toStringAsFixed(1)} $unit'));
@@ -476,36 +495,96 @@ class _MyHomePageState extends State<MyHomePage> {
     return sb.toString().trim();
   }
 
+  String _formatEnvironmentHistory(
+    Map<SensorHistoryInterval, EnvironmentReadings> histories, {
+    required String unit,
+    required bool isTemperature,
+  }) {
+    if (histories.isEmpty) {
+      return '';
+    }
+    final EnvironmentReadings? readings = histories[SensorHistoryInterval.day] ?? histories.values.first;
+    if (readings == null || readings.entries.isEmpty) {
+      return '';
+    }
+    final List<EnvironmentReading> entries = List<EnvironmentReading>.from(readings.entries)
+      ..sort((a, b) => (a.dateTime ?? '').compareTo(b.dateTime ?? ''));
+    final StringBuffer sb = StringBuffer();
+    for (final EnvironmentReading entry in entries) {
+      final double? value = isTemperature ? entry.temperatureCelsius : entry.humidityPercent;
+      if (value == null) {
+        continue;
+      }
+      final String? formattedTime = _formatEnvironmentTimestamp(entry.dateTime);
+      if (formattedTime == null || formattedTime.isEmpty) {
+        continue;
+      }
+      sb.writeln('$formattedTime: ${_formatNumeric(value)} $unit');
+    }
+    return sb.toString().trim();
+  }
+
+  String? _formatEnvironmentTimestamp(String? isoString) {
+    if (isoString == null || isoString.isEmpty) {
+      return null;
+    }
+    final DateTime? parsed = DateTime.tryParse(isoString);
+    if (parsed == null) {
+      return null;
+    }
+    final DateTime local = parsed.toLocal();
+    final String day = _twoDigits(local.day);
+    final String month = _twoDigits(local.month);
+    final String year = _twoDigits(local.year % 100);
+    final String hour = _twoDigits(local.hour);
+    final String minute = _twoDigits(local.minute);
+    return '$day.$month.$year $hour:$minute';
+  }
+
+  String _twoDigits(int value) {
+    return value.toString().padLeft(2, '0');
+  }
+
+  String _formatNumeric(double value) {
+    final double rounded = value.roundToDouble();
+    if ((value - rounded).abs() < 0.001) {
+      return rounded.toInt().toString();
+    }
+    return value.toStringAsFixed(1);
+  }
+
   String _formatPowerHistory(PowerHistory? history) {
     if (history == null) {
       return '';
     }
     final StringBuffer sb = StringBuffer();
     if (history.day != null) {
-      sb.writeln(l10n.historyPowerEntry(_rangeLabel(HistoryRange.day), history.day!.sumDay.toString()));
+      sb.writeln(l10n.historyPowerEntry(_rangeLabel(SensorHistoryInterval.day), history.day!.sumDay.toString()));
     }
     if (history.week != null) {
       final int weekTotal = history.week!.energyStat.values.fold(0, (int a, int b) => a + b);
-      sb.writeln(l10n.historyPowerEntry(_rangeLabel(HistoryRange.week), weekTotal.toString()));
+      sb.writeln(l10n.historyPowerEntry(_rangeLabel(SensorHistoryInterval.week), weekTotal.toString()));
     }
     if (history.month != null) {
-      sb.writeln(l10n.historyPowerEntry(_rangeLabel(HistoryRange.month), history.month!.sumMonth.toString()));
+      sb.writeln(l10n.historyPowerEntry(_rangeLabel(SensorHistoryInterval.month), history.month!.sumMonth.toString()));
     }
     if (history.twoYears != null) {
-      sb.writeln(l10n.historyPowerEntry(_rangeLabel(HistoryRange.twoYears), history.twoYears!.sumYear.toString()));
+      sb.writeln(
+        l10n.historyPowerEntry(_rangeLabel(SensorHistoryInterval.twoYears), history.twoYears!.sumYear.toString()),
+      );
     }
     return sb.toString().trim();
   }
 
-  String _rangeLabel(HistoryRange range) {
+  String _rangeLabel(SensorHistoryInterval range) {
     switch (range) {
-      case HistoryRange.day:
+      case SensorHistoryInterval.day:
         return l10n.rangeDay;
-      case HistoryRange.week:
+      case SensorHistoryInterval.week:
         return l10n.rangeWeek;
-      case HistoryRange.month:
+      case SensorHistoryInterval.month:
         return l10n.rangeMonth;
-      case HistoryRange.twoYears:
+      case SensorHistoryInterval.twoYears:
         return l10n.rangeTwoYears;
     }
   }

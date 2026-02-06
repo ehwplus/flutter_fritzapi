@@ -2,7 +2,9 @@ import 'dart:convert';
 import 'package:crypto/crypto.dart';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter_fritzapi/flutter_fritzapi/model/device.dart';
 import 'package:flutter_fritzapi/flutter_fritzapi/model/devices.dart';
+import 'package:flutter_fritzapi/flutter_fritzapi/model/environment_readings.dart';
 import 'package:flutter_fritzapi/flutter_fritzapi/model/energy_stats.dart';
 import 'package:flutter_fritzapi/flutter_fritzapi/model/network_counters.dart';
 import 'package:flutter_fritzapi/flutter_fritzapi/model/sensor_history.dart';
@@ -15,6 +17,9 @@ abstract class FritzApiClient {
   FritzApiClient({this.baseUrl = 'http://fritz.box'});
 
   final String baseUrl;
+  String? _smarthomeBasePath;
+
+  static const List<String> _smarthomeBasePathCandidates = <String>['/api/v0', '/webservices', ''];
 
   /// A 64-bit number represented by 16 hex digits. It is assigned at login and
   /// must be kept for the duration of the session. A program should only use
@@ -151,15 +156,18 @@ abstract class FritzApiClient {
   }
 
   /// Retrieves power history across several ranges.
-  Future<PowerHistory?> getPowerHistory(int deviceId, {List<HistoryRange> ranges = HistoryRange.values}) async {
+  Future<PowerHistory?> getPowerHistory(
+    int deviceId, {
+    List<SensorHistoryInterval> ranges = SensorHistoryInterval.values,
+  }) async {
     assert(sessionId != null && sessionId!.isNotEmpty, 'SessionId must not be null or empty');
     EnergyStats? day;
     EnergyStats? week;
     EnergyStats? month;
     EnergyStats? twoYears;
-    final Map<HistoryRange, Map<String, dynamic>> raw = <HistoryRange, Map<String, dynamic>>{};
+    final Map<SensorHistoryInterval, Map<String, dynamic>> raw = <SensorHistoryInterval, Map<String, dynamic>>{};
 
-    for (final HistoryRange range in ranges) {
+    for (final SensorHistoryInterval range in ranges) {
       final Map<String, dynamic>? payload = await _getHomeAutoStats(
         command: _sensorCommand(SensorStatType.temperature, range, prefixOverride: 'EnergyStats'),
         deviceId: deviceId,
@@ -179,16 +187,16 @@ abstract class FritzApiClient {
         continue;
       }
       switch (range) {
-        case HistoryRange.day:
+        case SensorHistoryInterval.day:
           day = stats;
           break;
-        case HistoryRange.week:
+        case SensorHistoryInterval.week:
           week = stats;
           break;
-        case HistoryRange.month:
+        case SensorHistoryInterval.month:
           month = stats;
           break;
-        case HistoryRange.twoYears:
+        case SensorHistoryInterval.twoYears:
           twoYears = stats;
           break;
       }
@@ -199,16 +207,67 @@ abstract class FritzApiClient {
   }
 
   /// Retrieves temperature history for a device for the requested ranges.
-  Future<Map<HistoryRange, SensorHistory>> getTemperatureHistory(
+  Future<Map<SensorHistoryInterval, SensorHistory>> getTemperatureHistory(
     int deviceId, {
-    List<HistoryRange> ranges = const <HistoryRange>[HistoryRange.day],
-  }) => _getSensorHistory(deviceId: deviceId, ranges: ranges, type: SensorStatType.temperature);
+    List<SensorHistoryInterval> ranges = const <SensorHistoryInterval>[SensorHistoryInterval.day],
+  }) async {
+    final Map<SensorHistoryInterval, SensorHistory>? smarthome = await _getSmarthomeSensorHistory(
+      deviceId: deviceId,
+      ranges: ranges,
+      type: SensorStatType.temperature,
+    );
+    if (smarthome != null && smarthome.isNotEmpty) {
+      return smarthome;
+    }
+    return _getSensorHistory(deviceId: deviceId, ranges: ranges, type: SensorStatType.temperature);
+  }
 
   /// Retrieves humidity history for a device for the requested ranges.
-  Future<Map<HistoryRange, SensorHistory>> getHumidityHistory(
+  Future<Map<SensorHistoryInterval, SensorHistory>> getHumidityHistory(
     int deviceId, {
-    List<HistoryRange> ranges = const <HistoryRange>[HistoryRange.day],
-  }) => _getSensorHistory(deviceId: deviceId, ranges: ranges, type: SensorStatType.humidity);
+    List<SensorHistoryInterval> ranges = const <SensorHistoryInterval>[SensorHistoryInterval.day],
+  }) async {
+    final Map<SensorHistoryInterval, SensorHistory>? smarthome = await _getSmarthomeSensorHistory(
+      deviceId: deviceId,
+      ranges: ranges,
+      type: SensorStatType.humidity,
+    );
+    if (smarthome != null && smarthome.isNotEmpty) {
+      return smarthome;
+    }
+    return _getSensorHistory(deviceId: deviceId, ranges: ranges, type: SensorStatType.humidity);
+  }
+
+  /// Retrieves temperature/humidity readings with timestamps for the requested ranges.
+  /// Timestamps are derived from the statistics interval and anchored to the FRITZ!Box time if present,
+  /// otherwise the local time at request execution.
+  Future<Map<SensorHistoryInterval, EnvironmentReadings>> getEnvironmentHistory(
+    int deviceId, {
+    List<SensorHistoryInterval> ranges = const <SensorHistoryInterval>[SensorHistoryInterval.day],
+  }) async {
+    final Map<SensorHistoryInterval, EnvironmentReadings>? smarthome = await _getSmarthomeEnvironmentHistory(
+      deviceId: deviceId,
+      ranges: ranges,
+    );
+    if (smarthome != null && smarthome.isNotEmpty) {
+      return smarthome;
+    }
+    final Map<SensorHistoryInterval, SensorHistory> temperature = await _getSensorHistory(
+      deviceId: deviceId,
+      ranges: ranges,
+      type: SensorStatType.temperature,
+    );
+    final Map<SensorHistoryInterval, SensorHistory> humidity = await _getSensorHistory(
+      deviceId: deviceId,
+      ranges: ranges,
+      type: SensorStatType.humidity,
+    );
+    return _mergeLegacyEnvironmentHistory(
+      temperature: temperature,
+      humidity: humidity,
+      ranges: ranges,
+    );
+  }
 
   /// Returns a list of Wi‑Fi clients reported by the FRITZ!Box.
   Future<List<WifiClient>> getWifiClients() async {
@@ -261,15 +320,15 @@ abstract class FritzApiClient {
 
   Future<FritzApiResponse> post(Uri url, {Map<String, String>? headers, required Map<String, String> body});
 
-  HomeAutoQueryCommand? _energyCommandForRange(HistoryRange range) {
+  HomeAutoQueryCommand? _energyCommandForRange(SensorHistoryInterval range) {
     switch (range) {
-      case HistoryRange.day:
+      case SensorHistoryInterval.day:
         return HomeAutoQueryCommand.EnergyStats_24h;
-      case HistoryRange.week:
+      case SensorHistoryInterval.week:
         return HomeAutoQueryCommand.EnergyStats_week;
-      case HistoryRange.month:
+      case SensorHistoryInterval.month:
         return HomeAutoQueryCommand.EnergyStats_month;
-      case HistoryRange.twoYears:
+      case SensorHistoryInterval.twoYears:
         return HomeAutoQueryCommand.EnergyStats_2years;
     }
   }
@@ -312,15 +371,42 @@ abstract class FritzApiClient {
     return null;
   }
 
-  Future<Map<HistoryRange, SensorHistory>> _getSensorHistory({
+  dynamic _tryDecodeJson(String body) {
+    try {
+      return jsonDecode(body);
+    } catch (_) {
+      // Ignore primary decode errors and try to salvage JSON below.
+    }
+    final int firstBrace = body.indexOf('{');
+    if (firstBrace != -1) {
+      try {
+        final String trimmed = body.substring(firstBrace);
+        return jsonDecode(trimmed);
+      } catch (_) {
+        // Continue to next fallback.
+      }
+    }
+    final int firstBracket = body.indexOf('[');
+    if (firstBracket != -1) {
+      try {
+        final String trimmed = body.substring(firstBracket);
+        return jsonDecode(trimmed);
+      } catch (_) {
+        // Ignore.
+      }
+    }
+    return null;
+  }
+
+  Future<Map<SensorHistoryInterval, SensorHistory>> _getSensorHistory({
     required int deviceId,
-    required List<HistoryRange> ranges,
+    required List<SensorHistoryInterval> ranges,
     required SensorStatType type,
   }) async {
     assert(sessionId != null && sessionId!.isNotEmpty, 'SessionId must not be null or empty');
 
-    final Map<HistoryRange, SensorHistory> result = <HistoryRange, SensorHistory>{};
-    for (final HistoryRange range in ranges) {
+    final Map<SensorHistoryInterval, SensorHistory> result = <SensorHistoryInterval, SensorHistory>{};
+    for (final SensorHistoryInterval range in ranges) {
       final String command = _sensorCommand(type, range);
       final Map<String, dynamic>? payload = await _getHomeAutoStats(command: command, deviceId: deviceId);
       if (payload == null) {
@@ -334,7 +420,59 @@ abstract class FritzApiClient {
     return result;
   }
 
-  String _sensorCommand(SensorStatType type, HistoryRange range, {String? prefixOverride}) {
+  Future<Map<SensorHistoryInterval, SensorHistory>?> _getSmarthomeSensorHistory({
+    required int deviceId,
+    required List<SensorHistoryInterval> ranges,
+    required SensorStatType type,
+  }) async {
+    assert(sessionId != null && sessionId!.isNotEmpty, 'SessionId must not be null or empty');
+
+    final List<Map<String, dynamic>> units = await _getSmarthomeUnits();
+    if (units.isEmpty) {
+      return null;
+    }
+    final String? unitUid = await _resolveSmarthomeUnitUid(deviceId, units: units);
+    if (unitUid == null || unitUid.isEmpty) {
+      return null;
+    }
+    final Map<String, dynamic>? unit = await _getSmarthomeUnit(unitUid);
+    if (unit == null) {
+      return null;
+    }
+    final Map<SensorHistoryInterval, SensorHistory> parsed = _parseSmarthomeSensorHistory(
+      unit,
+      type: type,
+      ranges: ranges,
+    );
+    return parsed.isEmpty ? null : parsed;
+  }
+
+  Future<Map<SensorHistoryInterval, EnvironmentReadings>?> _getSmarthomeEnvironmentHistory({
+    required int deviceId,
+    required List<SensorHistoryInterval> ranges,
+  }) async {
+    assert(sessionId != null && sessionId!.isNotEmpty, 'SessionId must not be null or empty');
+
+    final List<Map<String, dynamic>> units = await _getSmarthomeUnits();
+    if (units.isEmpty) {
+      return null;
+    }
+    final String? unitUid = await _resolveSmarthomeUnitUid(deviceId, units: units);
+    if (unitUid == null || unitUid.isEmpty) {
+      return null;
+    }
+    final Map<String, dynamic>? unit = await _getSmarthomeUnit(unitUid);
+    if (unit == null) {
+      return null;
+    }
+    final Map<SensorHistoryInterval, EnvironmentReadings> parsed = _parseSmarthomeEnvironmentHistory(
+      unit,
+      ranges: ranges,
+    );
+    return parsed.isEmpty ? null : parsed;
+  }
+
+  String _sensorCommand(SensorStatType type, SensorHistoryInterval range, {String? prefixOverride}) {
     final String prefix =
         prefixOverride ??
         switch (type) {
@@ -342,10 +480,10 @@ abstract class FritzApiClient {
           SensorStatType.humidity => 'HumidityStats',
         };
     final String suffix = switch (range) {
-      HistoryRange.day => '24h',
-      HistoryRange.week => 'week',
-      HistoryRange.month => 'month',
-      HistoryRange.twoYears => '2years',
+      SensorHistoryInterval.day => '24h',
+      SensorHistoryInterval.week => 'week',
+      SensorHistoryInterval.month => 'month',
+      SensorHistoryInterval.twoYears => '2years',
     };
     return '${prefix}_$suffix';
   }
@@ -363,6 +501,541 @@ abstract class FritzApiClient {
     );
     final FritzApiResponse response = await get(url, headers: const <String, String>{});
     return _tryDecodeJsonMap(response.body);
+  }
+
+  Map<String, String> _smarthomeHeaders() {
+    final String sid = sessionId ?? '';
+    return <String, String>{'Authorization': 'AVM-SID $sid', 'AVM-SID': sid, 'Accept': 'application/json'};
+  }
+
+  Uri _buildSmarthomeUri(String basePath, String path) {
+    final String normalizedBaseUrl = baseUrl.endsWith('/') ? baseUrl.substring(0, baseUrl.length - 1) : baseUrl;
+    final String normalizedBasePath = basePath.isEmpty ? '' : (basePath.startsWith('/') ? basePath : '/$basePath');
+    final String normalizedPath = path.startsWith('/') ? path : '/$path';
+    return Uri.parse('$normalizedBaseUrl$normalizedBasePath$normalizedPath');
+  }
+
+  Future<dynamic> _getSmarthomeData(String path) async {
+    assert(sessionId != null && sessionId!.isNotEmpty, 'SessionId must not be null or empty');
+
+    final List<String> candidates = _smarthomeBasePath != null
+        ? <String>[_smarthomeBasePath!]
+        : _smarthomeBasePathCandidates;
+    for (final String basePath in candidates) {
+      final Uri uri = _buildSmarthomeUri(basePath, path);
+      try {
+        final FritzApiResponse response = await get(uri, headers: _smarthomeHeaders());
+        if (response.statusCode >= 200 && response.statusCode < 300) {
+          final dynamic decoded = _tryDecodeJson(response.body);
+          if (decoded != null) {
+            _smarthomeBasePath = basePath;
+            return decoded;
+          }
+        } else if (response.statusCode == 401 || response.statusCode == 403) {
+          final dynamic decoded = _tryDecodeJson(response.body);
+          if (decoded != null) {
+            _smarthomeBasePath = basePath;
+            return decoded;
+          }
+        }
+      } catch (error) {
+        debugPrint('Failed to load Smarthome REST data from $uri: $error');
+      }
+    }
+    return null;
+  }
+
+  Future<List<Map<String, dynamic>>> _getSmarthomeUnits() async {
+    final dynamic decoded = await _getSmarthomeData('/smarthome/overview/units');
+    if (decoded is List) {
+      return decoded.whereType<Map<String, dynamic>>().map((Map<String, dynamic> item) {
+        return Map<String, dynamic>.from(item);
+      }).toList();
+    }
+    if (decoded is Map<String, dynamic>) {
+      final dynamic list = decoded['units'] ?? decoded['data'] ?? decoded['items'];
+      if (list is List) {
+        return list.whereType<Map<String, dynamic>>().map((Map<String, dynamic> item) {
+          return Map<String, dynamic>.from(item);
+        }).toList();
+      }
+    }
+    return const <Map<String, dynamic>>[];
+  }
+
+  Future<Map<String, dynamic>?> _getSmarthomeUnit(String uid) async {
+    final String encodedUid = Uri.encodeComponent(uid);
+    final dynamic decoded = await _getSmarthomeData('/smarthome/overview/units/$encodedUid');
+    if (decoded is Map<String, dynamic>) {
+      return Map<String, dynamic>.from(decoded);
+    }
+    return null;
+  }
+
+  Future<String?> _resolveSmarthomeUnitUid(int deviceId, {List<Map<String, dynamic>>? units}) async {
+    final List<Map<String, dynamic>> resolvedUnits = units ?? await _getSmarthomeUnits();
+    if (resolvedUnits.isEmpty) {
+      return null;
+    }
+
+    final String? direct = _matchUnitUidByTokens(resolvedUnits, <String>[deviceId.toString()]);
+    if (direct != null) {
+      return direct;
+    }
+
+    Device? device;
+    try {
+      final Devices devices = await getDevices();
+      device = devices.devices.firstWhere((Device candidate) => candidate.id == deviceId);
+    } catch (_) {
+      device = null;
+    }
+    if (device == null) {
+      return null;
+    }
+
+    final List<String> tokens = _collectDeviceIdentifiers(device);
+    final String? match = _matchUnitUidByTokens(resolvedUnits, tokens);
+    if (match != null) {
+      return match;
+    }
+
+    return _matchUnitUidByName(resolvedUnits, device.displayName);
+  }
+
+  List<String> _collectDeviceIdentifiers(Device device) {
+    final Set<String> tokens = <String>{device.id.toString()};
+    void addToken(dynamic value) {
+      final String? parsed = _asString(value);
+      if (parsed != null && parsed.trim().isNotEmpty) {
+        tokens.add(parsed.trim());
+      }
+    }
+
+    final Map<String, dynamic>? raw = device.raw;
+    if (raw != null) {
+      for (final String key in <String>[
+        'ain',
+        'identifier',
+        'deviceIdentifier',
+        'deviceId',
+        'id',
+        'uid',
+        'UID',
+        'deviceUid',
+        'parentUid',
+        'groupUid',
+      ]) {
+        if (raw.containsKey(key)) {
+          addToken(raw[key]);
+        }
+      }
+      final dynamic nestedDevice = raw['device'];
+      if (nestedDevice is Map<String, dynamic>) {
+        for (final String key in <String>['ain', 'identifier', 'deviceIdentifier', 'deviceId', 'id', 'uid', 'UID']) {
+          if (nestedDevice.containsKey(key)) {
+            addToken(nestedDevice[key]);
+          }
+        }
+      }
+      final dynamic units = raw['units'];
+      if (units is List) {
+        for (final dynamic unit in units) {
+          if (unit is Map<String, dynamic>) {
+            for (final String key in <String>['uid', 'UID', 'ain', 'identifier', 'deviceUid']) {
+              if (unit.containsKey(key)) {
+                addToken(unit[key]);
+              }
+            }
+          }
+        }
+      }
+    }
+
+    return tokens.toList(growable: false);
+  }
+
+  String? _matchUnitUidByTokens(List<Map<String, dynamic>> units, Iterable<String> tokens) {
+    final Set<String> normalizedTokens = tokens
+        .map(_normalizeIdentifier)
+        .where((String token) => token.isNotEmpty)
+        .toSet();
+    if (normalizedTokens.isEmpty) {
+      return null;
+    }
+    for (final Map<String, dynamic> unit in units) {
+      final Set<String> unitIds = _smarthomeUnitIdentifiers(
+        unit,
+      ).map(_normalizeIdentifier).where((String token) => token.isNotEmpty).toSet();
+      if (unitIds.any(normalizedTokens.contains)) {
+        return _smarthomeUnitUid(unit);
+      }
+    }
+    return null;
+  }
+
+  String? _matchUnitUidByName(List<Map<String, dynamic>> units, String? name) {
+    if (name == null || name.trim().isEmpty) {
+      return null;
+    }
+    final String normalizedName = name.trim().toLowerCase();
+    final List<Map<String, dynamic>> matches = units.where((Map<String, dynamic> unit) {
+      final String? unitName = _asString(unit['name']);
+      return unitName != null && unitName.trim().toLowerCase() == normalizedName;
+    }).toList();
+    if (matches.isEmpty) {
+      return null;
+    }
+    if (matches.length == 1) {
+      return _smarthomeUnitUid(matches.first);
+    }
+    final List<Map<String, dynamic>> nonGroups = matches
+        .where((Map<String, dynamic> unit) => unit['isGroupUnit'] != true)
+        .toList();
+    if (nonGroups.length == 1) {
+      return _smarthomeUnitUid(nonGroups.first);
+    }
+    return null;
+  }
+
+  String _normalizeIdentifier(String value) {
+    return value.toLowerCase().replaceAll(RegExp(r'[\s\-]'), '');
+  }
+
+  String? _smarthomeUnitUid(Map<String, dynamic> unit) {
+    return _asString(unit['UID'] ?? unit['uid']);
+  }
+
+  Iterable<String> _smarthomeUnitIdentifiers(Map<String, dynamic> unit) sync* {
+    for (final String key in <String>['UID', 'uid', 'deviceUid', 'parentUid', 'groupUid', 'ain', 'deviceId', 'id']) {
+      final String? value = _asString(unit[key]);
+      if (value != null && value.isNotEmpty) {
+        yield value;
+      }
+    }
+  }
+
+  Map<SensorHistoryInterval, SensorHistory> _parseSmarthomeSensorHistory(
+    Map<String, dynamic> unit, {
+    required SensorStatType type,
+    required List<SensorHistoryInterval> ranges,
+  }) {
+    final Map<SensorHistoryInterval, SensorHistory> result = <SensorHistoryInterval, SensorHistory>{};
+    final dynamic stats = unit['statistics'];
+    if (stats is! Map<String, dynamic>) {
+      return result;
+    }
+    final String key = type == SensorStatType.temperature ? 'temperatures' : 'humidities';
+    final dynamic entries = stats[key] ?? stats['temperature'] ?? stats['humidity'];
+    if (entries is! List) {
+      return result;
+    }
+    for (final dynamic entry in entries) {
+      if (entry is! Map<String, dynamic>) {
+        continue;
+      }
+      final String? period = _asString(entry['period']);
+      final SensorHistoryInterval? range = _smarthomePeriodToRange(period);
+      if (range == null || !ranges.contains(range)) {
+        continue;
+      }
+      final String? state = _asString(entry['statisticsState']);
+      if (state != null && _isInvalidStatisticsState(state)) {
+        continue;
+      }
+      final List<double> values = _extractNumericList(entry['values']);
+      if (values.isEmpty) {
+        continue;
+      }
+      result[range] = SensorHistory(
+        type: type,
+        range: range,
+        values: values,
+        intervalSeconds: _asInt(entry['interval']),
+        level: _asInt(entry['level']),
+        raw: <String, dynamic>{'unit': unit, 'stat': entry},
+      );
+    }
+    return result;
+  }
+
+  Map<SensorHistoryInterval, EnvironmentReadings> _parseSmarthomeEnvironmentHistory(
+    Map<String, dynamic> unit, {
+    required List<SensorHistoryInterval> ranges,
+  }) {
+    final Map<SensorHistoryInterval, EnvironmentReadings> result = <SensorHistoryInterval, EnvironmentReadings>{};
+    final dynamic stats = unit['statistics'];
+    if (stats is! Map<String, dynamic>) {
+      return result;
+    }
+    final List<dynamic> tempEntries =
+        (stats['temperatures'] is List) ? (stats['temperatures'] as List) : const <dynamic>[];
+    final List<dynamic> humidityEntries =
+        (stats['humidities'] is List) ? (stats['humidities'] as List) : const <dynamic>[];
+    if (tempEntries.isEmpty && humidityEntries.isEmpty) {
+      return result;
+    }
+
+    for (final SensorHistoryInterval range in ranges) {
+      final Map<String, dynamic>? tempEntry = _findSmarthomeStatEntry(tempEntries, range: range);
+      final Map<String, dynamic>? humidityEntry = _findSmarthomeStatEntry(humidityEntries, range: range);
+      final EnvironmentReadings? readings = _mergeSmarthomeEntries(
+        range: range,
+        temperatureEntry: tempEntry,
+        humidityEntry: humidityEntry,
+      );
+      if (readings != null && !readings.isEmpty) {
+        result[range] = readings;
+      }
+    }
+
+    return result;
+  }
+
+  Map<String, dynamic>? _findSmarthomeStatEntry(List<dynamic> entries, {required SensorHistoryInterval range}) {
+    for (final dynamic entry in entries) {
+      if (entry is! Map<String, dynamic>) {
+        continue;
+      }
+      final SensorHistoryInterval? entryRange = _smarthomePeriodToRange(_asString(entry['period']));
+      if (entryRange == range) {
+        final String? state = _asString(entry['statisticsState']);
+        if (state != null && _isInvalidStatisticsState(state)) {
+          return null;
+        }
+        return Map<String, dynamic>.from(entry);
+      }
+    }
+    return null;
+  }
+
+  EnvironmentReadings? _mergeSmarthomeEntries({
+    required SensorHistoryInterval range,
+    Map<String, dynamic>? temperatureEntry,
+    Map<String, dynamic>? humidityEntry,
+  }) {
+    if (temperatureEntry == null && humidityEntry == null) {
+      return null;
+    }
+    final Map<DateTime, _EnvironmentReadingBuilder> builders = <DateTime, _EnvironmentReadingBuilder>{};
+    final DateTime now = DateTime.now();
+    if (temperatureEntry != null) {
+      final List<double> values = _extractNumericList(temperatureEntry['values']);
+      final int? intervalSeconds = _resolveIntervalSeconds(
+        _asInt(temperatureEntry['interval']),
+        range: range,
+        count: values.length,
+      );
+      _appendSeriesToBuilders(
+        builders,
+        values: values,
+        intervalSeconds: intervalSeconds,
+        referenceTime: now,
+        isTemperature: true,
+        raw: temperatureEntry,
+      );
+    }
+    if (humidityEntry != null) {
+      final List<double> values = _extractNumericList(humidityEntry['values']);
+      final int? intervalSeconds = _resolveIntervalSeconds(
+        _asInt(humidityEntry['interval']),
+        range: range,
+        count: values.length,
+      );
+      _appendSeriesToBuilders(
+        builders,
+        values: values,
+        intervalSeconds: intervalSeconds,
+        referenceTime: now,
+        isTemperature: false,
+        raw: humidityEntry,
+      );
+    }
+    return _buildersToReadings(builders);
+  }
+
+  SensorHistoryInterval? _smarthomePeriodToRange(String? period) {
+    if (period == null) {
+      return null;
+    }
+    switch (period.toLowerCase()) {
+      case 'day':
+      case '24h':
+        return SensorHistoryInterval.day;
+      case 'week':
+        return SensorHistoryInterval.week;
+      case 'month':
+        return SensorHistoryInterval.month;
+      case 'year':
+      case '2years':
+      case 'twoyears':
+        return SensorHistoryInterval.twoYears;
+    }
+    return null;
+  }
+
+  bool _isInvalidStatisticsState(String state) {
+    switch (state.toLowerCase()) {
+      case 'invalid':
+      case 'error':
+      case 'unavailable':
+        return true;
+    }
+    return false;
+  }
+
+  Map<SensorHistoryInterval, EnvironmentReadings> _mergeLegacyEnvironmentHistory({
+    required Map<SensorHistoryInterval, SensorHistory> temperature,
+    required Map<SensorHistoryInterval, SensorHistory> humidity,
+    required List<SensorHistoryInterval> ranges,
+  }) {
+    final Map<SensorHistoryInterval, EnvironmentReadings> result = <SensorHistoryInterval, EnvironmentReadings>{};
+    for (final SensorHistoryInterval range in ranges) {
+      final SensorHistory? tempHistory = temperature[range];
+      final SensorHistory? humidityHistory = humidity[range];
+      final EnvironmentReadings? readings = _mergeLegacySensorHistories(
+        range: range,
+        temperature: tempHistory,
+        humidity: humidityHistory,
+      );
+      if (readings != null && !readings.isEmpty) {
+        result[range] = readings;
+      }
+    }
+    return result;
+  }
+
+  EnvironmentReadings? _mergeLegacySensorHistories({
+    required SensorHistoryInterval range,
+    SensorHistory? temperature,
+    SensorHistory? humidity,
+  }) {
+    if (temperature == null && humidity == null) {
+      return null;
+    }
+    final Map<DateTime, _EnvironmentReadingBuilder> builders = <DateTime, _EnvironmentReadingBuilder>{};
+    if (temperature != null) {
+      final DateTime referenceTime = _resolveLegacyReferenceTime(temperature.raw) ?? DateTime.now();
+      final int? intervalSeconds = _resolveIntervalSeconds(
+        temperature.intervalSeconds,
+        range: range,
+        count: temperature.values.length,
+      );
+      _appendSeriesToBuilders(
+        builders,
+        values: temperature.values,
+        intervalSeconds: intervalSeconds,
+        referenceTime: referenceTime,
+        isTemperature: true,
+        raw: temperature.raw,
+      );
+    }
+    if (humidity != null) {
+      final DateTime referenceTime = _resolveLegacyReferenceTime(humidity.raw) ?? DateTime.now();
+      final int? intervalSeconds = _resolveIntervalSeconds(
+        humidity.intervalSeconds,
+        range: range,
+        count: humidity.values.length,
+      );
+      _appendSeriesToBuilders(
+        builders,
+        values: humidity.values,
+        intervalSeconds: intervalSeconds,
+        referenceTime: referenceTime,
+        isTemperature: false,
+        raw: humidity.raw,
+      );
+    }
+    return _buildersToReadings(builders);
+  }
+
+  DateTime? _resolveLegacyReferenceTime(Map<String, dynamic> raw) {
+    final int? seconds = _asInt(raw['CurrentDateInSec'] ?? raw['currentDateInSec'] ?? raw['currentDate']);
+    if (seconds != null && seconds > 0) {
+      return DateTime.fromMillisecondsSinceEpoch(seconds * 1000);
+    }
+    final int? millis = _asInt(raw['CurrentDateInMSec'] ?? raw['currentDateInMSec']);
+    if (millis != null && millis > 0) {
+      return DateTime.fromMillisecondsSinceEpoch(millis);
+    }
+    return null;
+  }
+
+  int? _resolveIntervalSeconds(int? interval, {required SensorHistoryInterval range, required int count}) {
+    if (interval != null && interval > 0) {
+      return interval;
+    }
+    if (count <= 0) {
+      return null;
+    }
+    final int totalSeconds = switch (range) {
+      SensorHistoryInterval.day => 86400,
+      SensorHistoryInterval.week => 7 * 86400,
+      SensorHistoryInterval.month => 30 * 86400,
+      SensorHistoryInterval.twoYears => 365 * 2 * 86400,
+    };
+    final int derived = (totalSeconds / count).round();
+    return derived > 0 ? derived : null;
+  }
+
+  void _appendSeriesToBuilders(
+    Map<DateTime, _EnvironmentReadingBuilder> builders, {
+    required List<double> values,
+    required int? intervalSeconds,
+    required DateTime referenceTime,
+    required bool isTemperature,
+    Object? raw,
+  }) {
+    if (values.isEmpty || intervalSeconds == null || intervalSeconds <= 0) {
+      return;
+    }
+    final DateTime roundedReference = _roundDown(referenceTime, intervalSeconds);
+    final int length = values.length;
+    final DateTime start = roundedReference.subtract(Duration(seconds: intervalSeconds * (length - 1)));
+    for (int i = 0; i < length; i++) {
+      final DateTime dt = start.add(Duration(seconds: intervalSeconds * i));
+      final _EnvironmentReadingBuilder builder = builders.putIfAbsent(
+        dt,
+        () => _EnvironmentReadingBuilder(dt),
+      );
+      if (isTemperature) {
+        builder.temperatureCelsius = values[i];
+      } else {
+        builder.humidityPercent = values[i];
+      }
+      if (raw != null) {
+        builder.addRaw(raw);
+      }
+    }
+  }
+
+  DateTime _roundDown(DateTime value, int intervalSeconds) {
+    if (intervalSeconds <= 0) {
+      return value;
+    }
+    final int intervalMs = intervalSeconds * 1000;
+    final int ms = value.millisecondsSinceEpoch;
+    final int rounded = ms - (ms % intervalMs);
+    return DateTime.fromMillisecondsSinceEpoch(rounded, isUtc: value.isUtc);
+  }
+
+  EnvironmentReadings _buildersToReadings(Map<DateTime, _EnvironmentReadingBuilder> builders) {
+    if (builders.isEmpty) {
+      return const EnvironmentReadings(entries: <EnvironmentReading>[]);
+    }
+    final List<_EnvironmentReadingBuilder> sorted = builders.values.toList()
+      ..sort((a, b) => a.dateTime.compareTo(b.dateTime));
+    final List<EnvironmentReading> entries = sorted
+        .map(
+          (builder) => EnvironmentReading(
+            dateTime: builder.dateTime.toIso8601String(),
+            temperatureCelsius: builder.temperatureCelsius,
+            humidityPercent: builder.humidityPercent,
+            raw: builder.raw,
+          ),
+        )
+        .toList();
+    return EnvironmentReadings(entries: entries);
   }
 
   Map<String, dynamic> _normalizeEnergyPayload(Map<String, dynamic> input) {
@@ -411,7 +1084,7 @@ abstract class FritzApiClient {
   SensorHistory? _parseSensorHistory(
     Map<String, dynamic> json, {
     required SensorStatType type,
-    required HistoryRange range,
+    required SensorHistoryInterval range,
   }) {
     Map<String, dynamic>? statMap;
     for (final String key in <String>['TemperatureStat', 'HumidityStat', 'EnergyStat', 'stat', 'data']) {
@@ -581,6 +1254,29 @@ DateTime? _asDateTime(dynamic value) {
       ? DateTime.fromMillisecondsSinceEpoch(raw)
       : DateTime.fromMillisecondsSinceEpoch(raw * 1000);
   return dateTime.toUtc();
+}
+
+class _EnvironmentReadingBuilder {
+  _EnvironmentReadingBuilder(this.dateTime);
+
+  final DateTime dateTime;
+  double? temperatureCelsius;
+  double? humidityPercent;
+  final List<Object?> _raw = <Object?>[];
+
+  Object? get raw {
+    if (_raw.isEmpty) {
+      return null;
+    }
+    if (_raw.length == 1) {
+      return _raw.first;
+    }
+    return List<Object?>.unmodifiable(_raw);
+  }
+
+  void addRaw(Object value) {
+    _raw.add(value);
+  }
 }
 
 /// Extracts counters for bytes sent/received from the FRITZ!Box JSON response.

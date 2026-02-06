@@ -1,17 +1,19 @@
 import 'energy_stats.dart';
 
 /// Time buckets supported by the FRITZ!Box stats API.
-enum HistoryRange { day, week, month, twoYears }
+enum SensorHistoryInterval { day, week, month, twoYears }
 
-String historyRangeLabel(HistoryRange range) {
+enum SensorStatType { temperature, humidity }
+
+String historyRangeLabel(SensorHistoryInterval range) {
   switch (range) {
-    case HistoryRange.day:
+    case SensorHistoryInterval.day:
       return '24h';
-    case HistoryRange.week:
+    case SensorHistoryInterval.week:
       return 'Woche';
-    case HistoryRange.month:
+    case SensorHistoryInterval.month:
       return 'Monat';
-    case HistoryRange.twoYears:
+    case SensorHistoryInterval.twoYears:
       return '2 Jahre';
   }
 }
@@ -23,20 +25,17 @@ class PowerHistory {
     this.week,
     this.month,
     this.twoYears,
-    this.raw = const <HistoryRange, Map<String, dynamic>>{},
+    this.raw = const <SensorHistoryInterval, Map<String, dynamic>>{},
   });
 
   final EnergyStats? day;
   final EnergyStats? week;
   final EnergyStats? month;
   final EnergyStats? twoYears;
-  final Map<HistoryRange, Map<String, dynamic>> raw;
+  final Map<SensorHistoryInterval, Map<String, dynamic>> raw;
 
-  bool get isEmpty =>
-      day == null && week == null && month == null && twoYears == null;
+  bool get isEmpty => day == null && week == null && month == null && twoYears == null;
 }
-
-enum SensorStatType { temperature, humidity }
 
 /// Time series stats for temperature or humidity.
 class SensorHistory {
@@ -50,7 +49,7 @@ class SensorHistory {
   });
 
   final SensorStatType type;
-  final HistoryRange range;
+  final SensorHistoryInterval range;
   final List<double> values;
   final int? intervalSeconds;
   final int? level;
