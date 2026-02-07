@@ -107,12 +107,23 @@ abstract class FritzApiClient {
   Future<Devices> getDevices() async {
     assert(sessionId != null && sessionId!.isNotEmpty, 'SessionId must not be null or empty');
 
-    final url = Uri.parse('$baseUrl/data.lua');
-    final body = <String, String>{'sid': sessionId!, 'xhrId': 'all', 'xhr': '1', 'page': 'sh_dev'};
-    final result = await post(url, body: body);
-    final devices = Devices.fromJson(jsonDecode(result.body));
-
-    return devices;
+    final Uri url = Uri.parse('$baseUrl/data.lua');
+    final Map<String, String> body = <String, String>{'sid': sessionId!, 'xhrId': 'all', 'xhr': '1', 'page': 'sh_dev'};
+    FritzApiResponse result = await post(url, body: body);
+    for (int attempt = 0; attempt < 2; attempt++) {
+      try {
+        final Devices devices = Devices.fromJson(jsonDecode(result.body));
+        return devices;
+      } on FormatException catch (error) {
+        if (attempt == 1) {
+          rethrow;
+        }
+        debugPrint('FormatException while decoding devices payload: $error. Retrying once.');
+        await Future<void>.delayed(const Duration(milliseconds: 200));
+        result = await post(url, body: body);
+      }
+    }
+    throw StateError('Failed to decode devices payload after retry.');
   }
 
   /// Reads the current WAN counters (bytes sent/received) from the FRITZ!Box UI.
@@ -244,10 +255,16 @@ abstract class FritzApiClient {
   Future<Map<SensorHistoryInterval, EnvironmentReadings>> getEnvironmentHistory(
     int deviceId, {
     List<SensorHistoryInterval> ranges = const <SensorHistoryInterval>[SensorHistoryInterval.day],
+    double temperatureJumpThresholdCelsius = 10.0,
+    double humidityJumpThresholdPercent = 30.0,
+    bool enableJumpFilter = true,
   }) async {
     final Map<SensorHistoryInterval, EnvironmentReadings>? smarthome = await _getSmarthomeEnvironmentHistory(
       deviceId: deviceId,
       ranges: ranges,
+      temperatureJumpThresholdCelsius: temperatureJumpThresholdCelsius,
+      humidityJumpThresholdPercent: humidityJumpThresholdPercent,
+      enableJumpFilter: enableJumpFilter,
     );
     if (smarthome != null && smarthome.isNotEmpty) {
       return smarthome;
@@ -266,6 +283,9 @@ abstract class FritzApiClient {
       temperature: temperature,
       humidity: humidity,
       ranges: ranges,
+      temperatureJumpThresholdCelsius: temperatureJumpThresholdCelsius,
+      humidityJumpThresholdPercent: humidityJumpThresholdPercent,
+      enableJumpFilter: enableJumpFilter,
     );
   }
 
@@ -300,20 +320,32 @@ abstract class FritzApiClient {
     final url = Uri.parse(
       '$baseUrl/net/home_auto_query.lua?sid=${sessionId!}&command=${command.name}&id=$deviceId&xhr=1',
     );
-    final response = await get(url, headers: const <String, String>{});
-    final dynamic decoded = jsonDecode(response.body);
-    if (decoded is! Map<String, dynamic>) {
-      return null;
+    FritzApiResponse response = await get(url, headers: const <String, String>{});
+    for (int attempt = 0; attempt < 2; attempt++) {
+      try {
+        final dynamic decoded = jsonDecode(response.body);
+        if (decoded is! Map<String, dynamic>) {
+          return null;
+        }
+        final Map<String, dynamic> normalized = _normalizeEnergyPayload(decoded);
+        try {
+          return EnergyStats.fromJson(normalized);
+        } catch (error, stack) {
+          Error.throwWithStackTrace(
+            StateError('Failed to parse energy stats for device $deviceId: $error\nPayload: $normalized'),
+            stack,
+          );
+        }
+      } on FormatException catch (error) {
+        if (attempt == 1) {
+          rethrow;
+        }
+        debugPrint('FormatException while decoding energy stats payload: $error. Retrying once.');
+        await Future<void>.delayed(const Duration(milliseconds: 200));
+        response = await get(url, headers: const <String, String>{});
+      }
     }
-    final Map<String, dynamic> normalized = _normalizeEnergyPayload(decoded);
-    try {
-      return EnergyStats.fromJson(normalized);
-    } catch (error, stack) {
-      Error.throwWithStackTrace(
-        StateError('Failed to parse energy stats for device $deviceId: $error\nPayload: $normalized'),
-        stack,
-      );
-    }
+    return null;
   }
 
   Future<FritzApiResponse> get(Uri url, {Map<String, String>? headers});
@@ -450,6 +482,9 @@ abstract class FritzApiClient {
   Future<Map<SensorHistoryInterval, EnvironmentReadings>?> _getSmarthomeEnvironmentHistory({
     required int deviceId,
     required List<SensorHistoryInterval> ranges,
+    required double temperatureJumpThresholdCelsius,
+    required double humidityJumpThresholdPercent,
+    required bool enableJumpFilter,
   }) async {
     assert(sessionId != null && sessionId!.isNotEmpty, 'SessionId must not be null or empty');
 
@@ -468,6 +503,9 @@ abstract class FritzApiClient {
     final Map<SensorHistoryInterval, EnvironmentReadings> parsed = _parseSmarthomeEnvironmentHistory(
       unit,
       ranges: ranges,
+      temperatureJumpThresholdCelsius: temperatureJumpThresholdCelsius,
+      humidityJumpThresholdPercent: humidityJumpThresholdPercent,
+      enableJumpFilter: enableJumpFilter,
     );
     return parsed.isEmpty ? null : parsed;
   }
@@ -762,6 +800,9 @@ abstract class FritzApiClient {
   Map<SensorHistoryInterval, EnvironmentReadings> _parseSmarthomeEnvironmentHistory(
     Map<String, dynamic> unit, {
     required List<SensorHistoryInterval> ranges,
+    required double temperatureJumpThresholdCelsius,
+    required double humidityJumpThresholdPercent,
+    required bool enableJumpFilter,
   }) {
     final Map<SensorHistoryInterval, EnvironmentReadings> result = <SensorHistoryInterval, EnvironmentReadings>{};
     final dynamic stats = unit['statistics'];
@@ -776,6 +817,7 @@ abstract class FritzApiClient {
       return result;
     }
 
+    final bool isDeviceOn = _extractSmarthomeOnOffState(unit) ?? false;
     for (final SensorHistoryInterval range in ranges) {
       final Map<String, dynamic>? tempEntry = _findSmarthomeStatEntry(tempEntries, range: range);
       final Map<String, dynamic>? humidityEntry = _findSmarthomeStatEntry(humidityEntries, range: range);
@@ -783,6 +825,10 @@ abstract class FritzApiClient {
         range: range,
         temperatureEntry: tempEntry,
         humidityEntry: humidityEntry,
+        isDeviceOn: isDeviceOn,
+        temperatureJumpThresholdCelsius: temperatureJumpThresholdCelsius,
+        humidityJumpThresholdPercent: humidityJumpThresholdPercent,
+        enableJumpFilter: enableJumpFilter,
       );
       if (readings != null && !readings.isEmpty) {
         result[range] = readings;
@@ -813,12 +859,18 @@ abstract class FritzApiClient {
     required SensorHistoryInterval range,
     Map<String, dynamic>? temperatureEntry,
     Map<String, dynamic>? humidityEntry,
+    required bool isDeviceOn,
+    required double temperatureJumpThresholdCelsius,
+    required double humidityJumpThresholdPercent,
+    required bool enableJumpFilter,
   }) {
     if (temperatureEntry == null && humidityEntry == null) {
       return null;
     }
     final Map<DateTime, _EnvironmentReadingBuilder> builders = <DateTime, _EnvironmentReadingBuilder>{};
     final DateTime now = DateTime.now();
+    int? temperatureIntervalSeconds;
+    int? humidityIntervalSeconds;
     if (temperatureEntry != null) {
       final List<double> values = _extractNumericList(temperatureEntry['values']);
       final int? intervalSeconds = _resolveIntervalSeconds(
@@ -826,6 +878,7 @@ abstract class FritzApiClient {
         range: range,
         count: values.length,
       );
+      temperatureIntervalSeconds = intervalSeconds;
       _appendSeriesToBuilders(
         builders,
         values: values,
@@ -842,6 +895,7 @@ abstract class FritzApiClient {
         range: range,
         count: values.length,
       );
+      humidityIntervalSeconds = intervalSeconds;
       _appendSeriesToBuilders(
         builders,
         values: values,
@@ -850,6 +904,24 @@ abstract class FritzApiClient {
         isTemperature: false,
         raw: humidityEntry,
       );
+    }
+    if (enableJumpFilter) {
+    _applyJumpFilterToBuilders(
+      builders,
+      isDeviceOn: isDeviceOn,
+      threshold: temperatureJumpThresholdCelsius,
+      forTemperature: true,
+      intervalSeconds: temperatureIntervalSeconds,
+      range: range,
+    );
+    _applyJumpFilterToBuilders(
+      builders,
+      isDeviceOn: isDeviceOn,
+      threshold: humidityJumpThresholdPercent,
+      forTemperature: false,
+      intervalSeconds: humidityIntervalSeconds,
+      range: range,
+    );
     }
     return _buildersToReadings(builders);
   }
@@ -884,10 +956,41 @@ abstract class FritzApiClient {
     return false;
   }
 
+  bool? _extractSmarthomeOnOffState(Map<String, dynamic> unit) {
+    bool? readInterface(dynamic value) {
+      if (value is! Map<String, dynamic>) {
+        return null;
+      }
+      final dynamic active = value['active'];
+      if (active is bool) {
+        return active;
+      }
+      final String? switchState = _asString(value['switchState'] ?? value['state'] ?? value['on']);
+      if (switchState != null) {
+        switch (switchState.toLowerCase()) {
+          case 'on':
+          case 'true':
+          case '1':
+            return true;
+          case 'off':
+          case 'false':
+          case '0':
+            return false;
+        }
+      }
+      return null;
+    }
+
+    return readInterface(unit['onOffInterface']) ?? readInterface(unit['switchInterface']);
+  }
+
   Map<SensorHistoryInterval, EnvironmentReadings> _mergeLegacyEnvironmentHistory({
     required Map<SensorHistoryInterval, SensorHistory> temperature,
     required Map<SensorHistoryInterval, SensorHistory> humidity,
     required List<SensorHistoryInterval> ranges,
+    required double temperatureJumpThresholdCelsius,
+    required double humidityJumpThresholdPercent,
+    required bool enableJumpFilter,
   }) {
     final Map<SensorHistoryInterval, EnvironmentReadings> result = <SensorHistoryInterval, EnvironmentReadings>{};
     for (final SensorHistoryInterval range in ranges) {
@@ -897,6 +1000,9 @@ abstract class FritzApiClient {
         range: range,
         temperature: tempHistory,
         humidity: humidityHistory,
+        temperatureJumpThresholdCelsius: temperatureJumpThresholdCelsius,
+        humidityJumpThresholdPercent: humidityJumpThresholdPercent,
+        enableJumpFilter: enableJumpFilter,
       );
       if (readings != null && !readings.isEmpty) {
         result[range] = readings;
@@ -909,11 +1015,16 @@ abstract class FritzApiClient {
     required SensorHistoryInterval range,
     SensorHistory? temperature,
     SensorHistory? humidity,
+    required double temperatureJumpThresholdCelsius,
+    required double humidityJumpThresholdPercent,
+    required bool enableJumpFilter,
   }) {
     if (temperature == null && humidity == null) {
       return null;
     }
     final Map<DateTime, _EnvironmentReadingBuilder> builders = <DateTime, _EnvironmentReadingBuilder>{};
+    int? temperatureIntervalSeconds;
+    int? humidityIntervalSeconds;
     if (temperature != null) {
       final DateTime referenceTime = _resolveLegacyReferenceTime(temperature.raw) ?? DateTime.now();
       final int? intervalSeconds = _resolveIntervalSeconds(
@@ -921,6 +1032,7 @@ abstract class FritzApiClient {
         range: range,
         count: temperature.values.length,
       );
+      temperatureIntervalSeconds = intervalSeconds;
       _appendSeriesToBuilders(
         builders,
         values: temperature.values,
@@ -937,6 +1049,7 @@ abstract class FritzApiClient {
         range: range,
         count: humidity.values.length,
       );
+      humidityIntervalSeconds = intervalSeconds;
       _appendSeriesToBuilders(
         builders,
         values: humidity.values,
@@ -944,6 +1057,24 @@ abstract class FritzApiClient {
         referenceTime: referenceTime,
         isTemperature: false,
         raw: humidity.raw,
+      );
+    }
+    if (enableJumpFilter) {
+      _applyJumpFilterToBuilders(
+        builders,
+        isDeviceOn: false,
+        threshold: temperatureJumpThresholdCelsius,
+        forTemperature: true,
+        intervalSeconds: temperatureIntervalSeconds,
+        range: range,
+      );
+      _applyJumpFilterToBuilders(
+        builders,
+        isDeviceOn: false,
+        threshold: humidityJumpThresholdPercent,
+        forTemperature: false,
+        intervalSeconds: humidityIntervalSeconds,
+        range: range,
       );
     }
     return _buildersToReadings(builders);
@@ -976,6 +1107,155 @@ abstract class FritzApiClient {
     };
     final int derived = (totalSeconds / count).round();
     return derived > 0 ? derived : null;
+  }
+
+  void _applyJumpFilterToBuilders(
+    Map<DateTime, _EnvironmentReadingBuilder> builders, {
+    required bool isDeviceOn,
+    required double threshold,
+    required bool forTemperature,
+    required int? intervalSeconds,
+    required SensorHistoryInterval range,
+  }) {
+    if (range != SensorHistoryInterval.day || threshold <= 0 || builders.isEmpty) {
+      return;
+    }
+    int? normalizedInterval = intervalSeconds;
+    if (normalizedInterval != null && normalizedInterval > 10000) {
+      normalizedInterval = (normalizedInterval / 1000).round();
+    }
+    if (normalizedInterval != null && (normalizedInterval < 600 || normalizedInterval > 1200)) {
+      return;
+    }
+    final List<_EnvironmentReadingBuilder> sorted = builders.values.toList()
+      ..sort((a, b) => a.dateTime.compareTo(b.dateTime));
+    final List<int> seriesIndices = <int>[];
+    final List<double> seriesValues = <double>[];
+    for (int i = 0; i < sorted.length; i++) {
+      final double? value = forTemperature ? sorted[i].temperatureCelsius : sorted[i].humidityPercent;
+      if (value != null) {
+        seriesIndices.add(i);
+        seriesValues.add(value);
+      }
+    }
+    if (seriesValues.length < 2) {
+      return;
+    }
+    final Set<int> removeIndices = <int>{};
+    bool isBetweenInclusive(double value, double a, double b) {
+      final double minValue = a < b ? a : b;
+      final double maxValue = a > b ? a : b;
+      return value >= minValue && value <= maxValue;
+    }
+
+    bool isBetweenExclusive(double value, double a, double b) {
+      final double minValue = a < b ? a : b;
+      final double maxValue = a > b ? a : b;
+      return value > minValue && value < maxValue;
+    }
+
+    for (int i = 1; i < seriesValues.length; i++) {
+      final double diff = seriesValues[i] - seriesValues[i - 1];
+      if (diff.abs() > threshold) {
+        if (diff > 0) {
+          int start = i - 1;
+          final double plateauValue = seriesValues[start];
+          while (start - 1 >= 0 && seriesValues[start - 1] == plateauValue) {
+            start--;
+          }
+          final int count = i - start;
+          if (count >= 2) {
+            for (int j = start; j < i; j++) {
+              removeIndices.add(j);
+            }
+            final int pre = start - 1;
+            if (pre >= 1) {
+              final double preValue = seriesValues[pre];
+              final double pre2Value = seriesValues[pre - 1];
+              if (isBetweenInclusive(preValue, pre2Value, plateauValue)) {
+                removeIndices.add(pre);
+              }
+            }
+          }
+        } else {
+          int end = i;
+          final double plateauValue = seriesValues[end];
+          while (end + 1 < seriesValues.length && seriesValues[end + 1] == plateauValue) {
+            end++;
+          }
+          final int count = end - i + 1;
+          if (count >= 2) {
+            for (int j = i; j <= end; j++) {
+              removeIndices.add(j);
+            }
+          }
+        }
+        continue;
+      }
+      if (i < 2) {
+        continue;
+      }
+      final double diff2 = seriesValues[i] - seriesValues[i - 2];
+      if (diff2.abs() <= threshold || !isBetweenExclusive(seriesValues[i - 1], seriesValues[i - 2], seriesValues[i])) {
+        continue;
+      }
+      if (diff2 > 0) {
+        int end = i - 2;
+        final double plateauValue = seriesValues[end];
+        int start = end;
+        while (start - 1 >= 0 && seriesValues[start - 1] == plateauValue) {
+          start--;
+        }
+        final int count = end - start + 1;
+        if (count >= 2) {
+          for (int j = start; j <= end; j++) {
+            removeIndices.add(j);
+          }
+          removeIndices.add(i - 1);
+        }
+      } else {
+        int start = i;
+        final double plateauValue = seriesValues[start];
+        int end = start;
+        while (end + 1 < seriesValues.length && seriesValues[end + 1] == plateauValue) {
+          end++;
+        }
+        final int count = end - start + 1;
+        if (count >= 2) {
+          for (int j = start; j <= end; j++) {
+            removeIndices.add(j);
+          }
+          removeIndices.add(i - 1);
+        }
+      }
+    }
+    if (removeIndices.isNotEmpty) {
+      for (final int seriesIndex in removeIndices) {
+        final _EnvironmentReadingBuilder builder = sorted[seriesIndices[seriesIndex]];
+        if (forTemperature) {
+          builder.temperatureCelsius = null;
+        } else {
+          builder.humidityPercent = null;
+        }
+      }
+    }
+    final int lastIndex = seriesValues.length - 1;
+    int lastRunStart = lastIndex;
+    final double lastValue = seriesValues[lastIndex];
+    while (lastRunStart - 1 >= 0 && seriesValues[lastRunStart - 1] == lastValue) {
+      lastRunStart--;
+    }
+    if (lastRunStart == lastIndex && lastIndex - 1 >= 0) {
+      final double previous = seriesValues[lastIndex - 1];
+      if (previous - lastValue > threshold) {
+        final _EnvironmentReadingBuilder builder = sorted[seriesIndices[lastIndex]];
+        if (forTemperature) {
+          builder.temperatureCelsius = null;
+        } else {
+          builder.humidityPercent = null;
+        }
+      }
+    }
   }
 
   void _appendSeriesToBuilders(

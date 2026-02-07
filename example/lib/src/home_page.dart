@@ -423,11 +423,7 @@ class _MyHomePageState extends State<MyHomePage> {
           effective.id,
           ranges: const <SensorHistoryInterval>[SensorHistoryInterval.day],
         );
-        final String historyText = _formatEnvironmentHistory(
-          histories,
-          unit: '°C',
-          isTemperature: true,
-        );
+        final String historyText = _formatEnvironmentHistory(histories, unit: '°C', isTemperature: true);
         return _DataPayload(
           current: l10n.currentTemperature(value.toStringAsFixed(1)),
           history: historyText.isEmpty ? null : historyText,
@@ -446,11 +442,7 @@ class _MyHomePageState extends State<MyHomePage> {
           effective.id,
           ranges: const <SensorHistoryInterval>[SensorHistoryInterval.day],
         );
-        final String historyText = _formatEnvironmentHistory(
-          histories,
-          unit: '%',
-          isTemperature: false,
-        );
+        final String historyText = _formatEnvironmentHistory(histories, unit: '%', isTemperature: false);
         return _DataPayload(
           current: l10n.currentHumidity(value.toStringAsFixed(1)),
           history: historyText.isEmpty ? null : historyText,
@@ -513,6 +505,11 @@ class _MyHomePageState extends State<MyHomePage> {
     for (final EnvironmentReading entry in entries) {
       final double? value = isTemperature ? entry.temperatureCelsius : entry.humidityPercent;
       if (value == null) {
+        final String? formattedTime = _formatEnvironmentTimestamp(entry.dateTime);
+        if (formattedTime == null || formattedTime.isEmpty) {
+          continue;
+        }
+        sb.writeln('$formattedTime: null');
         continue;
       }
       final String? formattedTime = _formatEnvironmentTimestamp(entry.dateTime);
