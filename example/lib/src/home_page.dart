@@ -1,8 +1,9 @@
+import 'dart:convert';
 import 'package:example/src/custom_fritz_api_client.dart';
 import 'package:example/src/l10n/generated/app_localizations.dart';
+import 'package:example/src/widgets/energy_series_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'dart:convert';
 import 'package:flutter_fritzapi/flutter_fritzapi.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -13,7 +14,8 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       locale: const Locale('de'),
-      onGenerateTitle: (BuildContext context) => AppLocalizations.of(context).appTitle,
+      onGenerateTitle: (BuildContext context) =>
+          AppLocalizations.of(context).appTitle,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
       theme: ThemeData(primarySwatch: Colors.blue),
@@ -32,7 +34,9 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   CustomFritzApiClient? _fritzApiClient;
 
-  final TextEditingController _baseUrlController = TextEditingController(text: 'http://fritz.box');
+  final TextEditingController _baseUrlController = TextEditingController(
+    text: 'http://fritz.box',
+  );
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final FocusNode _usernameFocus = FocusNode();
@@ -116,7 +120,9 @@ class _MyHomePageState extends State<MyHomePage> {
       }
       setState(() {
         _connected = isConnected;
-        _detectError = isConnected ? null : l10n.detectErrorWithUrl(_currentBaseUrl);
+        _detectError = isConnected
+            ? null
+            : l10n.detectErrorWithUrl(_currentBaseUrl);
       });
     } catch (error) {
       if (!mounted) {
@@ -156,7 +162,9 @@ class _MyHomePageState extends State<MyHomePage> {
     });
     try {
       final String? sid = await client.getSessionId(
-        username: _usernameController.text.isEmpty ? null : _usernameController.text,
+        username: _usernameController.text.isEmpty
+            ? null
+            : _usernameController.text,
         password: _passwordController.text,
       );
       if (!mounted) {
@@ -208,7 +216,10 @@ class _MyHomePageState extends State<MyHomePage> {
     await _prefs?.setString('password', _passwordController.text);
   }
 
-  List<_DataType> _capabilitiesForDevice(Device? device, {required bool isRouter}) {
+  List<_DataType> _capabilitiesForDevice(
+    Device? device, {
+    required bool isRouter,
+  }) {
     if (isRouter) {
       return const <_DataType>[_DataType.wifiClients];
     }
@@ -265,112 +276,164 @@ class _MyHomePageState extends State<MyHomePage> {
           padding: const EdgeInsets.all(16),
           child: FutureBuilder<_DataPayload>(
             future: _loadData(device: device, type: type, isRouter: isRouter),
-            builder: (BuildContext context, AsyncSnapshot<_DataPayload> snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Text(
-                      l10n.dataSheetTitle(deviceName, type.label(l10n)),
-                      style: Theme.of(context).textTheme.titleMedium,
+            builder:
+                (BuildContext context, AsyncSnapshot<_DataPayload> snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Text(
+                          l10n.dataSheetTitle(deviceName, type.label(l10n)),
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                        const SizedBox(height: 16),
+                        const LinearProgressIndicator(),
+                        const SizedBox(height: 8),
+                        Text(l10n.loadingData),
+                      ],
+                    );
+                  }
+                  if (snapshot.hasError) {
+                    return Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Text(
+                          l10n.dataSheetTitle(deviceName, type.label(l10n)),
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          l10n.errorWithMessage('${snapshot.error}'),
+                          style: const TextStyle(color: Colors.red),
+                        ),
+                        const SizedBox(height: 12),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: TextButton(
+                            onPressed: () => Navigator.pop(context),
+                            child: Text(l10n.closeButton),
+                          ),
+                        ),
+                      ],
+                    );
+                  }
+                  final _DataPayload? data = snapshot.data;
+                  if (type == _DataType.wifiClients &&
+                      data?.wifiClients != null) {
+                    return Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Text(
+                          l10n.dataSheetTitle(deviceName, type.label(l10n)),
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(data!.current),
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          height: 420,
+                          child: ListView.separated(
+                            shrinkWrap: true,
+                            itemBuilder: (BuildContext context, int index) {
+                              final WifiClient client =
+                                  data.wifiClients![index];
+                              return _buildWifiClientTile(client);
+                            },
+                            separatorBuilder: (_, int index) =>
+                                const SizedBox(height: 8),
+                            itemCount: data.wifiClients!.length,
+                          ),
+                        ),
+                        if (data.raw != null) ...<Widget>[
+                          const SizedBox(height: 12),
+                          _buildRawSection(data.raw!),
+                        ],
+                        const SizedBox(height: 12),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: TextButton(
+                            onPressed: () => Navigator.pop(context),
+                            child: Text(l10n.closeButton),
+                          ),
+                        ),
+                      ],
+                    );
+                  }
+                  return SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Text(
+                          l10n.dataSheetTitle(deviceName, type.label(l10n)),
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(data?.current ?? l10n.noData),
+                        if (type == _DataType.power &&
+                            data?.powerHistory != null) ...<Widget>[
+                          const SizedBox(height: 12),
+                          Text(
+                            l10n.historyTitle,
+                            style: Theme.of(context).textTheme.titleSmall,
+                          ),
+                          const SizedBox(height: 4),
+                          _PowerHistoryCards(data: data!.powerHistory!),
+                        ] else if ((type == _DataType.temperature ||
+                                type == _DataType.humidity) &&
+                            data?.sensorHistory != null) ...<Widget>[
+                          const SizedBox(height: 12),
+                          Text(
+                            l10n.historyTitle,
+                            style: Theme.of(context).textTheme.titleSmall,
+                          ),
+                          const SizedBox(height: 4),
+                          _SensorHistoryCards(data: data!.sensorHistory!),
+                        ] else if (data?.history != null) ...<Widget>[
+                          const SizedBox(height: 12),
+                          Text(
+                            l10n.historyTitle,
+                            style: Theme.of(context).textTheme.titleSmall,
+                          ),
+                          const SizedBox(height: 4),
+                          Container(
+                            constraints: const BoxConstraints(maxHeight: 240),
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.grey.shade50,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.grey.shade300),
+                            ),
+                            child: SingleChildScrollView(
+                              child: Text(
+                                data!.history!,
+                                style: const TextStyle(
+                                  fontFamily: 'monospace',
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                        if (data?.raw != null) ...<Widget>[
+                          const SizedBox(height: 12),
+                          _buildRawSection(data!.raw!),
+                        ],
+                        const SizedBox(height: 12),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: TextButton(
+                            onPressed: () => Navigator.pop(context),
+                            child: Text(l10n.closeButton),
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 16),
-                    const LinearProgressIndicator(),
-                    const SizedBox(height: 8),
-                    Text(l10n.loadingData),
-                  ],
-                );
-              }
-              if (snapshot.hasError) {
-                return Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Text(
-                      l10n.dataSheetTitle(deviceName, type.label(l10n)),
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    const SizedBox(height: 16),
-                    Text(l10n.errorWithMessage('${snapshot.error}'), style: const TextStyle(color: Colors.red)),
-                    const SizedBox(height: 12),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: TextButton(onPressed: () => Navigator.pop(context), child: Text(l10n.closeButton)),
-                    ),
-                  ],
-                );
-              }
-              final _DataPayload? data = snapshot.data;
-              if (type == _DataType.wifiClients && data?.wifiClients != null) {
-                return Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Text(
-                      l10n.dataSheetTitle(deviceName, type.label(l10n)),
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(data!.current),
-                    const SizedBox(height: 12),
-                    SizedBox(
-                      height: 420,
-                      child: ListView.separated(
-                        shrinkWrap: true,
-                        itemBuilder: (BuildContext context, int index) {
-                          final WifiClient client = data.wifiClients![index];
-                          return _buildWifiClientTile(client);
-                        },
-                        separatorBuilder: (_, __) => const SizedBox(height: 8),
-                        itemCount: data.wifiClients!.length,
-                      ),
-                    ),
-                    if (data.raw != null) ...<Widget>[const SizedBox(height: 12), _buildRawSection(data.raw!)],
-                    const SizedBox(height: 12),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: TextButton(onPressed: () => Navigator.pop(context), child: Text(l10n.closeButton)),
-                    ),
-                  ],
-                );
-              }
-              return Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Text(
-                    l10n.dataSheetTitle(deviceName, type.label(l10n)),
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                  const SizedBox(height: 16),
-                  Text(data?.current ?? l10n.noData),
-                  if (data?.history != null) ...<Widget>[
-                    const SizedBox(height: 12),
-                    Text(l10n.historyTitle, style: Theme.of(context).textTheme.titleSmall),
-                    const SizedBox(height: 4),
-                    Container(
-                      constraints: const BoxConstraints(maxHeight: 240),
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade50,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.grey.shade300),
-                      ),
-                      child: SingleChildScrollView(
-                        child: Text(data!.history!, style: const TextStyle(fontFamily: 'monospace', fontSize: 12)),
-                      ),
-                    ),
-                  ],
-                  if (data?.raw != null) ...<Widget>[const SizedBox(height: 12), _buildRawSection(data!.raw!)],
-                  const SizedBox(height: 12),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: TextButton(onPressed: () => Navigator.pop(context), child: Text(l10n.closeButton)),
-                  ),
-                ],
-              );
-            },
+                  );
+                },
           ),
         );
       },
@@ -391,7 +454,11 @@ class _MyHomePageState extends State<MyHomePage> {
     return null;
   }
 
-  Future<_DataPayload> _loadData({Device? device, required _DataType type, required bool isRouter}) async {
+  Future<_DataPayload> _loadData({
+    Device? device,
+    required _DataType type,
+    required bool isRouter,
+  }) async {
     final CustomFritzApiClient? client = _fritzApiClient;
     if (client == null || _sessionId == null) {
       throw StateError(l10n.loginRequired);
@@ -406,15 +473,22 @@ class _MyHomePageState extends State<MyHomePage> {
         if (value == null) {
           throw StateError(l10n.noTemperature);
         }
-        final Map<SensorHistoryInterval, EnvironmentReadings> histories = await client.getEnvironmentHistory(
-          effective.id,
-          ranges: const <SensorHistoryInterval>[SensorHistoryInterval.day],
+        final Map<SensorHistoryInterval, EnvironmentReadings> histories =
+            await client.getEnvironmentHistory(
+              effective.id,
+              ranges: SensorHistoryInterval.values,
+            );
+        final _SensorHistoryPayload? sensorHistory = _buildSensorHistoryPayload(
+          environmentHistories: histories,
+          unit: '°C',
+          isTemperature: true,
+          chartTitle: 'Temperatur (Zeitreihe)',
         );
-        final String historyText = _formatEnvironmentHistory(histories, unit: '°C', isTemperature: true);
         return _DataPayload(
           current: l10n.currentTemperature(value.toStringAsFixed(1)),
-          history: historyText.isEmpty ? null : historyText,
-          raw: _stringifyRaw(histories),
+          history: sensorHistory == null ? l10n.noData : null,
+          sensorHistory: sensorHistory,
+          raw: _stringifyRaw(_environmentHistoriesAsRaw(histories)),
         );
       case _DataType.humidity:
         if (device == null) {
@@ -425,15 +499,22 @@ class _MyHomePageState extends State<MyHomePage> {
         if (value == null) {
           throw StateError(l10n.noHumidity);
         }
-        final Map<SensorHistoryInterval, EnvironmentReadings> histories = await client.getEnvironmentHistory(
-          effective.id,
-          ranges: const <SensorHistoryInterval>[SensorHistoryInterval.day],
+        final Map<SensorHistoryInterval, EnvironmentReadings> histories =
+            await client.getEnvironmentHistory(
+              effective.id,
+              ranges: SensorHistoryInterval.values,
+            );
+        final _SensorHistoryPayload? sensorHistory = _buildSensorHistoryPayload(
+          environmentHistories: histories,
+          unit: '%',
+          isTemperature: false,
+          chartTitle: 'Luftfeuchtigkeit (Zeitreihe)',
         );
-        final String historyText = _formatEnvironmentHistory(histories, unit: '%', isTemperature: false);
         return _DataPayload(
           current: l10n.currentHumidity(value.toStringAsFixed(1)),
-          history: historyText.isEmpty ? null : historyText,
-          raw: _stringifyRaw(histories),
+          history: sensorHistory == null ? l10n.noData : null,
+          sensorHistory: sensorHistory,
+          raw: _stringifyRaw(_environmentHistoriesAsRaw(histories)),
         );
       case _DataType.power:
         if (device == null) {
@@ -444,157 +525,195 @@ class _MyHomePageState extends State<MyHomePage> {
         if (value == null) {
           throw StateError(l10n.noPower);
         }
-        final PowerHistory? history = await client.getPowerHistory(effective.id, ranges: SensorHistoryInterval.values);
-        final Map<SensorHistoryInterval, EnergyReadings> energyHistory = await client.getEnergyHistory(
+        final PowerHistory? history = await client.getPowerHistory(
           effective.id,
-          ranges: const <SensorHistoryInterval>[SensorHistoryInterval.day],
+          ranges: SensorHistoryInterval.values,
         );
-        final String summaryText = _formatPowerHistory(history);
-        final String energyText = _formatEnergyHistory(energyHistory, unit: 'Wh');
-        final String historyText = <String>[summaryText, energyText].where((String text) => text.isNotEmpty).join('\n');
+        final Map<SensorHistoryInterval, EnergyReadings> energyHistory =
+            await client.getEnergyHistory(
+              effective.id,
+              ranges: SensorHistoryInterval.values,
+            );
+        final _PowerHistoryPayload? powerHistory = _buildPowerHistoryPayload(
+          history: history,
+          energyHistory: energyHistory,
+        );
         return _DataPayload(
           current: l10n.currentPower(value.toStringAsFixed(1)),
-          history: historyText.isEmpty ? l10n.historyEnergyMissing : historyText,
-          raw: _stringifyRaw(history),
+          history: powerHistory == null ? l10n.historyEnergyMissing : null,
+          powerHistory: powerHistory,
+          raw: _stringifyRaw(<String, dynamic>{
+            'powerHistoryRaw':
+                (history?.raw ??
+                        const <SensorHistoryInterval, Map<String, dynamic>>{})
+                    .map(
+                      (range, payload) =>
+                          MapEntry<String, dynamic>(range.name, payload),
+                    ),
+            'energyHistory': energyHistory.map((range, readings) {
+              return MapEntry<String, dynamic>(
+                range.name,
+                readings.entries
+                    .map(
+                      (entry) => <String, dynamic>{
+                        'dateTime': entry.dateTime,
+                        'energyWh': entry.energyWh,
+                      },
+                    )
+                    .toList(growable: false),
+              );
+            }),
+          }),
         );
       case _DataType.wifiClients:
         final List<WifiClient> clients = await client.getWifiClients();
         if (clients.isEmpty) {
           throw StateError(l10n.noWifiClients);
         }
-        return _DataPayload(current: l10n.wifiClientCount(clients.length.toString()), wifiClients: clients);
+        return _DataPayload(
+          current: l10n.wifiClientCount(clients.length.toString()),
+          wifiClients: clients,
+        );
     }
   }
 
-  String _formatEnergyHistory(Map<SensorHistoryInterval, EnergyReadings> histories, {required String unit}) {
-    if (histories.isEmpty) {
-      return '';
-    }
-    final EnergyReadings? readings = histories[SensorHistoryInterval.day] ?? histories.values.first;
-    if (readings == null || readings.entries.isEmpty) {
-      return '';
-    }
-    final List<EnergyReading> entries = List<EnergyReading>.from(readings.entries)
-      ..sort((a, b) => (a.dateTime ?? '').compareTo(b.dateTime ?? ''));
-    final StringBuffer sb = StringBuffer();
-    for (final EnergyReading entry in entries) {
-      final String? formattedTime = _formatEnvironmentTimestamp(entry.dateTime);
-      if (formattedTime == null || formattedTime.isEmpty) {
-        continue;
-      }
-      if (entry.energyWh == null) {
-        sb.writeln('$formattedTime: null');
-        continue;
-      }
-      sb.writeln('$formattedTime: ${_formatNumeric(entry.energyWh!)} $unit');
-    }
-    return sb.toString().trim();
-  }
-
-  String _formatEnvironmentHistory(
-    Map<SensorHistoryInterval, EnvironmentReadings> histories, {
-    required String unit,
-    required bool isTemperature,
+  _PowerHistoryPayload? _buildPowerHistoryPayload({
+    required PowerHistory? history,
+    required Map<SensorHistoryInterval, EnergyReadings> energyHistory,
   }) {
-    if (histories.isEmpty) {
-      return '';
-    }
-    final EnvironmentReadings? readings = histories[SensorHistoryInterval.day] ?? histories.values.first;
-    if (readings == null || readings.entries.isEmpty) {
-      return '';
-    }
-    final List<EnvironmentReading> entries = List<EnvironmentReading>.from(readings.entries)
-      ..sort((a, b) => (a.dateTime ?? '').compareTo(b.dateTime ?? ''));
-    final StringBuffer sb = StringBuffer();
-    for (final EnvironmentReading entry in entries) {
-      final double? value = isTemperature ? entry.temperatureCelsius : entry.humidityPercent;
-      if (value == null) {
-        final String? formattedTime = _formatEnvironmentTimestamp(entry.dateTime);
-        if (formattedTime == null || formattedTime.isEmpty) {
-          continue;
-        }
-        sb.writeln('$formattedTime: null');
-        continue;
+    final Map<SensorHistoryInterval, int?> summaryWh =
+        <SensorHistoryInterval, int?>{
+          SensorHistoryInterval.day:
+              history?.day?.sumDay ??
+              _sumEnergyWh(energyHistory[SensorHistoryInterval.day]),
+          SensorHistoryInterval.week:
+              history?.week?.energyStat.values.fold<int>(
+                0,
+                (int a, int b) => a + b,
+              ) ??
+              _sumEnergyWh(energyHistory[SensorHistoryInterval.week]),
+          SensorHistoryInterval.month:
+              history?.month?.sumMonth ??
+              _sumEnergyWh(energyHistory[SensorHistoryInterval.month]),
+          SensorHistoryInterval.twoYears:
+              history?.twoYears?.sumYear ??
+              _sumEnergyWh(energyHistory[SensorHistoryInterval.twoYears]),
+        };
+    final Map<SensorHistoryInterval, EnergyReadings> seriesByRange =
+        <SensorHistoryInterval, EnergyReadings>{};
+    for (final SensorHistoryInterval range in SensorHistoryInterval.values) {
+      final EnergyReadings? readings = energyHistory[range];
+      if (readings != null && readings.entries.isNotEmpty) {
+        seriesByRange[range] = readings;
       }
-      final String? formattedTime = _formatEnvironmentTimestamp(entry.dateTime);
-      if (formattedTime == null || formattedTime.isEmpty) {
-        continue;
-      }
-      sb.writeln('$formattedTime: ${_formatNumeric(value)} $unit');
     }
-    return sb.toString().trim();
-  }
-
-  String? _formatEnvironmentTimestamp(String? isoString) {
-    if (isoString == null || isoString.isEmpty) {
+    final bool hasSummary = summaryWh.values.any((int? value) => value != null);
+    if (!hasSummary && seriesByRange.isEmpty) {
       return null;
     }
-    final DateTime? parsed = DateTime.tryParse(isoString);
-    if (parsed == null) {
+    return _PowerHistoryPayload(
+      summaryWh: summaryWh,
+      seriesByRange: seriesByRange,
+    );
+  }
+
+  _SensorHistoryPayload? _buildSensorHistoryPayload({
+    required Map<SensorHistoryInterval, EnvironmentReadings>
+    environmentHistories,
+    required bool isTemperature,
+    required String unit,
+    required String chartTitle,
+  }) {
+    final Map<SensorHistoryInterval, EnergyReadings> seriesByRange =
+        <SensorHistoryInterval, EnergyReadings>{};
+    for (final SensorHistoryInterval range in SensorHistoryInterval.values) {
+      final EnvironmentReadings? readings = environmentHistories[range];
+      if (readings == null || readings.entries.isEmpty) {
+        continue;
+      }
+      final List<EnergyReading> entries = readings.entries
+          .map((entry) {
+            final double? value = isTemperature
+                ? entry.temperatureCelsius
+                : entry.humidityPercent;
+            if (value == null ||
+                entry.dateTime == null ||
+                entry.dateTime!.isEmpty) {
+              return null;
+            }
+            return EnergyReading(
+              dateTime: entry.dateTime,
+              energyWh: value,
+              raw: entry.raw,
+            );
+          })
+          .whereType<EnergyReading>()
+          .toList(growable: false);
+      if (entries.isEmpty) {
+        continue;
+      }
+      seriesByRange[range] = EnergyReadings(entries: entries);
+    }
+    if (seriesByRange.isEmpty) {
       return null;
     }
-    final DateTime local = parsed.toLocal();
-    final String day = _twoDigits(local.day);
-    final String month = _twoDigits(local.month);
-    final String year = _twoDigits(local.year % 100);
-    final String hour = _twoDigits(local.hour);
-    final String minute = _twoDigits(local.minute);
-    return '$day.$month.$year $hour:$minute';
+    return _SensorHistoryPayload(
+      seriesByRange: seriesByRange,
+      unit: unit,
+      chartTitle: chartTitle,
+    );
   }
 
-  String _twoDigits(int value) {
-    return value.toString().padLeft(2, '0');
-  }
-
-  String _formatNumeric(double value) {
-    final double rounded = value.roundToDouble();
-    if ((value - rounded).abs() < 0.001) {
-      return rounded.toInt().toString();
-    }
-    return value.toStringAsFixed(1);
-  }
-
-  String _formatPowerHistory(PowerHistory? history) {
-    if (history == null) {
-      return '';
-    }
-    final StringBuffer sb = StringBuffer();
-    if (history.day != null) {
-      sb.writeln(l10n.historyPowerEntry(_rangeLabel(SensorHistoryInterval.day), history.day!.sumDay.toString()));
-    }
-    if (history.week != null) {
-      final int weekTotal = history.week!.energyStat.values.fold(0, (int a, int b) => a + b);
-      sb.writeln(l10n.historyPowerEntry(_rangeLabel(SensorHistoryInterval.week), weekTotal.toString()));
-    }
-    if (history.month != null) {
-      sb.writeln(l10n.historyPowerEntry(_rangeLabel(SensorHistoryInterval.month), history.month!.sumMonth.toString()));
-    }
-    if (history.twoYears != null) {
-      sb.writeln(
-        l10n.historyPowerEntry(_rangeLabel(SensorHistoryInterval.twoYears), history.twoYears!.sumYear.toString()),
+  Map<String, dynamic> _environmentHistoriesAsRaw(
+    Map<SensorHistoryInterval, EnvironmentReadings> histories,
+  ) {
+    return histories.map((range, readings) {
+      return MapEntry<String, dynamic>(
+        range.name,
+        readings.entries
+            .map(
+              (entry) => <String, dynamic>{
+                'dateTime': entry.dateTime,
+                'temperatureCelsius': entry.temperatureCelsius,
+                'humidityPercent': entry.humidityPercent,
+              },
+            )
+            .toList(growable: false),
       );
-    }
-    return sb.toString().trim();
+    });
   }
 
-  String _rangeLabel(SensorHistoryInterval range) {
-    switch (range) {
-      case SensorHistoryInterval.day:
-        return l10n.rangeDay;
-      case SensorHistoryInterval.week:
-        return l10n.rangeWeek;
-      case SensorHistoryInterval.month:
-        return l10n.rangeMonth;
-      case SensorHistoryInterval.twoYears:
-        return l10n.rangeTwoYears;
+  int? _sumEnergyWh(EnergyReadings? readings) {
+    if (readings == null || readings.entries.isEmpty) {
+      return null;
     }
+    double total = 0;
+    bool hasValue = false;
+    for (final EnergyReading entry in readings.entries) {
+      final double? value = entry.energyWh;
+      if (value == null) {
+        continue;
+      }
+      total += value;
+      hasValue = true;
+    }
+    if (!hasValue) {
+      return null;
+    }
+    return total.round();
   }
 
   Widget _buildWifiClientTile(WifiClient client) {
     final String lastSeen = _formatLastSeen(client.lastSeen);
-    final String channel2_4 = client.radioChannel2_4 != null ? client.radioChannel2_4! : '';
-    final String channel5 = client.radioChannel5 != null ? client.radioChannel5! : '';
-    final String channel6 = client.radioChannel6 != null ? client.radioChannel6! : '';
+    final String channel2_4 = client.radioChannel2_4 != null
+        ? client.radioChannel2_4!
+        : '';
+    final String channel5 = client.radioChannel5 != null
+        ? client.radioChannel5!
+        : '';
+    final String channel6 = client.radioChannel6 != null
+        ? client.radioChannel6!
+        : '';
     final String txtInfo =
         '${channel2_4.isEmpty ? '' : channel2_4} ${channel5.isEmpty ? '' : '${channel2_4.isNotEmpty ? ', ' : ''}$channel5'} ${channel6.isEmpty ? '' : '${channel2_4.isNotEmpty || channel5.isNotEmpty ? ', ' : ''}$channel6'}';
     return Card(
@@ -607,15 +726,26 @@ class _MyHomePageState extends State<MyHomePage> {
               children: <Widget>[
                 Icon(client.deviceType.icon, color: Colors.blueGrey),
                 const SizedBox(width: 8),
-                Expanded(child: Text(client.name, style: Theme.of(context).textTheme.titleMedium)),
+                Expanded(
+                  child: Text(
+                    client.name,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ),
                 if (client.isOnline)
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
-                      color: Colors.green.withOpacity(0.15),
+                      color: Colors.green.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Text(l10n.wifiClientOnline, style: TextStyle(color: Colors.green)),
+                    child: Text(
+                      l10n.wifiClientOnline,
+                      style: TextStyle(color: Colors.green),
+                    ),
                   ),
               ],
             ),
@@ -675,7 +805,9 @@ class _MyHomePageState extends State<MyHomePage> {
               tooltip: l10n.copyRawTooltip,
               onPressed: () {
                 Clipboard.setData(ClipboardData(text: raw));
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.rawCopied)));
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(SnackBar(content: Text(l10n.rawCopied)));
               },
             ),
           ],
@@ -689,7 +821,10 @@ class _MyHomePageState extends State<MyHomePage> {
             border: Border.all(color: Colors.grey.shade300),
           ),
           child: SingleChildScrollView(
-            child: Text(raw, style: const TextStyle(fontFamily: 'monospace', fontSize: 12)),
+            child: Text(
+              raw,
+              style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
+            ),
           ),
         ),
       ],
@@ -711,11 +846,17 @@ class _MyHomePageState extends State<MyHomePage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            Text(l10n.detectTitle, style: Theme.of(context).textTheme.titleMedium),
+            Text(
+              l10n.detectTitle,
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
             const SizedBox(height: 8),
             TextField(
               controller: _baseUrlController,
-              decoration: InputDecoration(labelText: l10n.baseUrlLabel, helperText: l10n.baseUrlHelper),
+              decoration: InputDecoration(
+                labelText: l10n.baseUrlLabel,
+                helperText: l10n.baseUrlHelper,
+              ),
               onChanged: (_) => _persistPrefs(),
             ),
             const SizedBox(height: 12),
@@ -726,7 +867,11 @@ class _MyHomePageState extends State<MyHomePage> {
                   color: _connected ? Colors.green : Colors.blueGrey,
                 ),
                 const SizedBox(width: 8),
-                Expanded(child: Text(_connected ? l10n.detectFound : l10n.detectSearching)),
+                Expanded(
+                  child: Text(
+                    _connected ? l10n.detectFound : l10n.detectSearching,
+                  ),
+                ),
                 TextButton(
                   onPressed: _detecting
                       ? null
@@ -734,7 +879,9 @@ class _MyHomePageState extends State<MyHomePage> {
                           _rebuildClient();
                           _autoDetect();
                         },
-                  child: _detecting ? Text(l10n.detectSearchingShort) : Text(l10n.detectRetry),
+                  child: _detecting
+                      ? Text(l10n.detectSearchingShort)
+                      : Text(l10n.detectRetry),
                 ),
               ],
             ),
@@ -758,7 +905,10 @@ class _MyHomePageState extends State<MyHomePage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            Text(l10n.loginTitle, style: Theme.of(context).textTheme.titleMedium),
+            Text(
+              l10n.loginTitle,
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
             const SizedBox(height: 8),
             TextField(
               controller: _passwordController,
@@ -781,7 +931,9 @@ class _MyHomePageState extends State<MyHomePage> {
               children: <Widget>[
                 ElevatedButton(
                   onPressed: !_connected || _loggingIn ? null : _login,
-                  child: _loggingIn ? Text(l10n.loginButtonBusy) : Text(l10n.loginButton),
+                  child: _loggingIn
+                      ? Text(l10n.loginButtonBusy)
+                      : Text(l10n.loginButton),
                 ),
               ],
             ),
@@ -797,13 +949,16 @@ class _MyHomePageState extends State<MyHomePage> {
 
   Widget _buildLoggedInCard() {
     final String sid = _sessionId ?? '';
-    final String sidShort = sid.isNotEmpty && sid.length > 6 ? '${sid.substring(0, 6)}...' : sid;
+    final String sidShort = sid.isNotEmpty && sid.length > 6
+        ? '${sid.substring(0, 6)}...'
+        : sid;
     return Card(
       child: ListTile(
         leading: const Icon(Icons.lock_open, color: Colors.green),
         title: Text(l10n.connectedLoggedInTitle),
         subtitle: Text(
-          l10n.connectedStatus(_currentBaseUrl) + (sidShort.isNotEmpty ? '\n${l10n.sidLabel(sidShort)}' : ''),
+          l10n.connectedStatus(_currentBaseUrl) +
+              (sidShort.isNotEmpty ? '\n${l10n.sidLabel(sidShort)}' : ''),
         ),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
@@ -815,7 +970,9 @@ class _MyHomePageState extends State<MyHomePage> {
                   ? null
                   : () {
                       Clipboard.setData(ClipboardData(text: sid));
-                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.sidCopied)));
+                      ScaffoldMessenger.of(
+                        context,
+                      ).showSnackBar(SnackBar(content: Text(l10n.sidCopied)));
                     },
             ),
             TextButton(onPressed: _logout, child: Text(l10n.logoutButton)),
@@ -870,7 +1027,10 @@ class _MyHomePageState extends State<MyHomePage> {
     required bool isRouter,
     required AppLocalizations l10n,
   }) {
-    final List<_DataType> caps = _capabilitiesForDevice(device, isRouter: isRouter);
+    final List<_DataType> caps = _capabilitiesForDevice(
+      device,
+      isRouter: isRouter,
+    );
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(12),
@@ -894,10 +1054,16 @@ class _MyHomePageState extends State<MyHomePage> {
                       tooltip: l10n.copyDeviceIdTooltip,
                       icon: const Icon(Icons.copy),
                       onPressed: () {
-                        Clipboard.setData(ClipboardData(text: device.id.toString()));
-                        ScaffoldMessenger.of(
-                          context,
-                        ).showSnackBar(SnackBar(content: Text(l10n.deviceIdCopied(device.id.toString()))));
+                        Clipboard.setData(
+                          ClipboardData(text: device.id.toString()),
+                        );
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              l10n.deviceIdCopied(device.id.toString()),
+                            ),
+                          ),
+                        );
                       },
                     ),
                 ],
@@ -915,8 +1081,12 @@ class _MyHomePageState extends State<MyHomePage> {
                         label: Text(type.label(l10n)),
                         avatar: Icon(type.icon, size: 18),
                         selected: _selectedCapabilities[deviceKey] == type,
-                        onSelected: (_) =>
-                            _onCapabilitySelected(deviceKey: deviceKey, type: type, device: device, isRouter: isRouter),
+                        onSelected: (_) => _onCapabilitySelected(
+                          deviceKey: deviceKey,
+                          type: type,
+                          device: device,
+                          isRouter: isRouter,
+                        ),
                       ),
                     )
                     .toList(),
@@ -946,7 +1116,10 @@ class _MyHomePageState extends State<MyHomePage> {
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(16),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: sections),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: sections,
+          ),
         ),
       ),
     );
@@ -984,10 +1157,350 @@ extension on _DataType {
 }
 
 class _DataPayload {
-  const _DataPayload({required this.current, this.history, this.wifiClients, this.raw});
+  const _DataPayload({
+    required this.current,
+    this.history,
+    this.wifiClients,
+    this.raw,
+    this.powerHistory,
+    this.sensorHistory,
+  });
 
   final String current;
   final String? history;
   final List<WifiClient>? wifiClients;
   final String? raw;
+  final _PowerHistoryPayload? powerHistory;
+  final _SensorHistoryPayload? sensorHistory;
+}
+
+class _PowerHistoryPayload {
+  const _PowerHistoryPayload({
+    required this.summaryWh,
+    required this.seriesByRange,
+  });
+
+  final Map<SensorHistoryInterval, int?> summaryWh;
+  final Map<SensorHistoryInterval, EnergyReadings> seriesByRange;
+
+  List<SensorHistoryInterval> get availableRanges {
+    return SensorHistoryInterval.values
+        .where(
+          (SensorHistoryInterval range) =>
+              seriesByRange[range]?.entries.isNotEmpty ?? false,
+        )
+        .toList(growable: false);
+  }
+}
+
+class _SensorHistoryPayload {
+  const _SensorHistoryPayload({
+    required this.seriesByRange,
+    required this.unit,
+    required this.chartTitle,
+  });
+
+  final Map<SensorHistoryInterval, EnergyReadings> seriesByRange;
+  final String unit;
+  final String chartTitle;
+
+  List<SensorHistoryInterval> get availableRanges {
+    return SensorHistoryInterval.values
+        .where(
+          (SensorHistoryInterval range) =>
+              seriesByRange[range]?.entries.isNotEmpty ?? false,
+        )
+        .toList(growable: false);
+  }
+}
+
+class _SensorHistoryCards extends StatefulWidget {
+  const _SensorHistoryCards({required this.data});
+
+  final _SensorHistoryPayload data;
+
+  @override
+  State<_SensorHistoryCards> createState() => _SensorHistoryCardsState();
+}
+
+class _SensorHistoryCardsState extends State<_SensorHistoryCards> {
+  late SensorHistoryInterval _selectedRange;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedRange = _initialRange(widget.data);
+  }
+
+  @override
+  void didUpdateWidget(covariant _SensorHistoryCards oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!widget.data.availableRanges.contains(_selectedRange)) {
+      _selectedRange = _initialRange(widget.data);
+    }
+  }
+
+  SensorHistoryInterval _initialRange(_SensorHistoryPayload data) {
+    final List<SensorHistoryInterval> availableRanges = data.availableRanges;
+    if (availableRanges.contains(SensorHistoryInterval.day)) {
+      return SensorHistoryInterval.day;
+    }
+    return availableRanges.isNotEmpty
+        ? availableRanges.first
+        : SensorHistoryInterval.day;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final AppLocalizations l10n = AppLocalizations.of(context);
+    final ThemeData theme = Theme.of(context);
+    final List<SensorHistoryInterval> availableRanges =
+        widget.data.availableRanges;
+    final EnergyReadings? selectedReadings =
+        widget.data.seriesByRange[_selectedRange];
+    final int? selectedIntervalSeconds = estimateEnergySeriesIntervalSeconds(
+      selectedReadings?.entries ?? const <EnergyReading>[],
+    );
+    final String selectedIntervalLabel = selectedIntervalSeconds == null
+        ? '-'
+        : formatEnergyIntervalLabel(selectedIntervalSeconds);
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Text(widget.data.chartTitle, style: theme.textTheme.titleSmall),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 12,
+              runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: <Widget>[
+                Text('Intervall: $selectedIntervalLabel'),
+                if (availableRanges.length > 1)
+                  DropdownButtonHideUnderline(
+                    child: DropdownButton<SensorHistoryInterval>(
+                      value: _selectedRange,
+                      items: availableRanges
+                          .map((SensorHistoryInterval range) {
+                            final EnergyReadings? readings =
+                                widget.data.seriesByRange[range];
+                            final int? intervalSeconds =
+                                estimateEnergySeriesIntervalSeconds(
+                                  readings?.entries ?? const <EnergyReading>[],
+                                );
+                            final String optionLabel = intervalSeconds == null
+                                ? historyRangeLabel(range)
+                                : '${historyRangeLabel(range)} (${formatEnergyIntervalLabel(intervalSeconds)})';
+                            return DropdownMenuItem<SensorHistoryInterval>(
+                              value: range,
+                              child: Text(optionLabel),
+                            );
+                          })
+                          .toList(growable: false),
+                      onChanged: (SensorHistoryInterval? next) {
+                        if (next == null) {
+                          return;
+                        }
+                        setState(() {
+                          _selectedRange = next;
+                        });
+                      },
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              height: 240,
+              child: EnergySeriesChart(
+                entries: selectedReadings?.entries ?? const <EnergyReading>[],
+                emptyText: l10n.noData,
+                unitLabel: widget.data.unit,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PowerHistoryCards extends StatefulWidget {
+  const _PowerHistoryCards({required this.data});
+
+  final _PowerHistoryPayload data;
+
+  @override
+  State<_PowerHistoryCards> createState() => _PowerHistoryCardsState();
+}
+
+class _PowerHistoryCardsState extends State<_PowerHistoryCards> {
+  late SensorHistoryInterval _selectedRange;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedRange = _initialRange(widget.data);
+  }
+
+  @override
+  void didUpdateWidget(covariant _PowerHistoryCards oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!widget.data.availableRanges.contains(_selectedRange)) {
+      _selectedRange = _initialRange(widget.data);
+    }
+  }
+
+  SensorHistoryInterval _initialRange(_PowerHistoryPayload data) {
+    final List<SensorHistoryInterval> availableRanges = data.availableRanges;
+    if (availableRanges.contains(SensorHistoryInterval.day)) {
+      return SensorHistoryInterval.day;
+    }
+    return availableRanges.isNotEmpty
+        ? availableRanges.first
+        : SensorHistoryInterval.day;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final AppLocalizations l10n = AppLocalizations.of(context);
+    final ThemeData theme = Theme.of(context);
+    final List<SensorHistoryInterval> availableRanges =
+        widget.data.availableRanges;
+    final EnergyReadings? selectedReadings =
+        widget.data.seriesByRange[_selectedRange];
+    final int? selectedIntervalSeconds = estimateEnergySeriesIntervalSeconds(
+      selectedReadings?.entries ?? const <EnergyReading>[],
+    );
+    final String selectedIntervalLabel = selectedIntervalSeconds == null
+        ? '-'
+        : formatEnergyIntervalLabel(selectedIntervalSeconds);
+
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        final double maxWidth = constraints.maxWidth;
+        final bool compactLayout = maxWidth < 640;
+        final double spacing = 12;
+        final double smallCardWidth = compactLayout
+            ? (maxWidth - spacing) / 2
+            : (maxWidth - spacing * 3) / 4;
+
+        return Wrap(
+          spacing: spacing,
+          runSpacing: spacing,
+          children: <Widget>[
+            for (final SensorHistoryInterval range
+                in SensorHistoryInterval.values)
+              SizedBox(
+                width: smallCardWidth,
+                child: _HistorySummaryCard(
+                  label: historyRangeLabel(range),
+                  valueWh: widget.data.summaryWh[range],
+                ),
+              ),
+            SizedBox(
+              width: maxWidth,
+              child: Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text(
+                        'Energieverbrauch (Zeitreihe)',
+                        style: theme.textTheme.titleSmall,
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 12,
+                        runSpacing: 8,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: <Widget>[
+                          Text('Intervall: $selectedIntervalLabel'),
+                          if (availableRanges.length > 1)
+                            DropdownButtonHideUnderline(
+                              child: DropdownButton<SensorHistoryInterval>(
+                                value: _selectedRange,
+                                items: availableRanges
+                                    .map((SensorHistoryInterval range) {
+                                      final EnergyReadings? readings =
+                                          widget.data.seriesByRange[range];
+                                      final int? intervalSeconds =
+                                          estimateEnergySeriesIntervalSeconds(
+                                            readings?.entries ??
+                                                const <EnergyReading>[],
+                                          );
+                                      final String optionLabel =
+                                          intervalSeconds == null
+                                          ? historyRangeLabel(range)
+                                          : '${historyRangeLabel(range)} (${formatEnergyIntervalLabel(intervalSeconds)})';
+                                      return DropdownMenuItem<
+                                        SensorHistoryInterval
+                                      >(value: range, child: Text(optionLabel));
+                                    })
+                                    .toList(growable: false),
+                                onChanged: (SensorHistoryInterval? next) {
+                                  if (next == null) {
+                                    return;
+                                  }
+                                  setState(() {
+                                    _selectedRange = next;
+                                  });
+                                },
+                              ),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      SizedBox(
+                        height: 240,
+                        child: EnergySeriesChart(
+                          entries:
+                              selectedReadings?.entries ??
+                              const <EnergyReading>[],
+                          emptyText: l10n.historyEnergyMissing,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _HistorySummaryCard extends StatelessWidget {
+  const _HistorySummaryCard({required this.label, required this.valueWh});
+
+  final String label;
+  final int? valueWh;
+
+  @override
+  Widget build(BuildContext context) {
+    final ThemeData theme = Theme.of(context);
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Text(label, style: theme.textTheme.bodySmall),
+            const SizedBox(height: 6),
+            Text(
+              valueWh == null ? '-' : '${valueWh!} Wh',
+              style: theme.textTheme.titleMedium,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }

@@ -90,7 +90,7 @@
       "value": {}
     }
   },
-  "currentPower": "Leistung: {value} W",
+  "currentPower": "Aktuelle Leistung: {value} W",
   "@currentPower": {
     "placeholders": {
       "value": {}
@@ -131,7 +131,7 @@
     }
   },
   "rangeDay": "24h",
-  "rangeWeek": "Woche",
+  "rangeWeek": "Letzte 7 Tage",
   "rangeMonth": "Monat",
   "rangeTwoYears": "2 Jahre",
   "wifiClientCount": "{count} WLAN-Clients gefunden",

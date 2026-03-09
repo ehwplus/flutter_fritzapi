@@ -343,7 +343,7 @@ abstract class AppLocalizations {
   /// No description provided for @currentPower.
   ///
   /// In de, this message translates to:
-  /// **'Leistung: {value} W'**
+  /// **'Aktuelle Leistung: {value} W'**
   String currentPower(Object value);
 
   /// No description provided for @currentTemperature.
@@ -421,7 +421,7 @@ abstract class AppLocalizations {
   /// No description provided for @rangeWeek.
   ///
   /// In de, this message translates to:
-  /// **'Woche'**
+  /// **'Letzte 7 Tage'**
   String get rangeWeek;
 
   /// No description provided for @rangeMonth.

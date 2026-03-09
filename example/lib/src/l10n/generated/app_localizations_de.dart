@@ -153,7 +153,7 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String currentPower(Object value) {
-    return 'Leistung: $value W';
+    return 'Aktuelle Leistung: $value W';
   }
 
   @override
@@ -201,7 +201,7 @@ class AppLocalizationsDe extends AppLocalizations {
   String get rangeDay => '24h';
 
   @override
-  String get rangeWeek => 'Woche';
+  String get rangeWeek => 'Letzte 7 Tage';
 
   @override
   String get rangeMonth => 'Monat';
