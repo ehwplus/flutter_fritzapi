@@ -4,9 +4,9 @@ import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_fritzapi/flutter_fritzapi/model/device.dart';
 import 'package:flutter_fritzapi/flutter_fritzapi/model/devices.dart';
-import 'package:flutter_fritzapi/flutter_fritzapi/model/environment_readings.dart';
+import 'package:flutter_fritzapi/flutter_fritzapi/model/energy_readings.dart';
 import 'package:flutter_fritzapi/flutter_fritzapi/model/energy_stats.dart';
-import 'package:flutter_fritzapi/flutter_fritzapi/model/network_counters.dart';
+import 'package:flutter_fritzapi/flutter_fritzapi/model/environment_readings.dart';
 import 'package:flutter_fritzapi/flutter_fritzapi/model/sensor_history.dart';
 import 'package:flutter_fritzapi/flutter_fritzapi/model/wifi_client.dart';
 import 'package:flutter_fritzapi/flutter_fritzapi/utils/xml_select.dart';
@@ -124,46 +124,6 @@ abstract class FritzApiClient {
       }
     }
     throw StateError('Failed to decode devices payload after retry.');
-  }
-
-  /// Reads the current WAN counters (bytes sent/received) from the FRITZ!Box UI.
-  Future<NetworkCounters?> getOnlineCounters() async {
-    assert(sessionId != null && sessionId!.isNotEmpty, 'SessionId must not be null or empty');
-
-    final List<Uri> candidates = <Uri>[
-      Uri.parse('$baseUrl/online-monitor/counter'),
-      Uri.parse('$baseUrl/online-monitor/counter&sid=${sessionId!}'),
-      Uri.parse('$baseUrl/online-monitor/counter&sid=${sessionId!}&xhr=1'),
-      Uri.parse('$baseUrl/online-monitor/counter&sid=${sessionId!}&useajax=1'),
-    ];
-
-    for (final Uri url in candidates) {
-      try {
-        FritzApiResponse response;
-        if (url.path.endsWith('data.lua')) {
-          response = await post(
-            url,
-            headers: const <String, String>{},
-            body: <String, String>{'sid': sessionId!, 'xhr': '1', 'page': 'overview'},
-          );
-        } else {
-          response = await get(url, headers: const <String, String>{});
-        }
-        print('${url.toString()}: ${response.body}');
-        final Map<String, dynamic>? decoded = _tryDecodeJsonMap(response.body);
-        if (decoded == null) {
-          continue;
-        }
-        final NetworkCounters? counters = extractNetworkCounters(decoded);
-        if (counters != null) {
-          return counters;
-        }
-      } catch (error) {
-        debugPrint('Failed to load online counters from ${url.path}: $error');
-      }
-    }
-
-    return null;
   }
 
   /// Retrieves power history across several ranges.
@@ -289,6 +249,21 @@ abstract class FritzApiClient {
     );
   }
 
+  /// Retrieves energy consumption readings with timestamps for the requested ranges.
+  Future<Map<SensorHistoryInterval, EnergyReadings>> getEnergyHistory(
+    int deviceId, {
+    List<SensorHistoryInterval> ranges = const <SensorHistoryInterval>[SensorHistoryInterval.day],
+  }) async {
+    final Map<SensorHistoryInterval, EnergyReadings>? smarthome = await _getSmarthomeEnergyHistory(
+      deviceId: deviceId,
+      ranges: ranges,
+    );
+    if (smarthome != null && smarthome.isNotEmpty) {
+      return smarthome;
+    }
+    return _getLegacyEnergyHistory(deviceId: deviceId, ranges: ranges);
+  }
+
   /// Returns a list of Wi‑Fi clients reported by the FRITZ!Box.
   Future<List<WifiClient>> getWifiClients() async {
     assert(sessionId != null && sessionId!.isNotEmpty, 'SessionId must not be null or empty');
@@ -351,6 +326,8 @@ abstract class FritzApiClient {
   Future<FritzApiResponse> get(Uri url, {Map<String, String>? headers});
 
   Future<FritzApiResponse> post(Uri url, {Map<String, String>? headers, required Map<String, String> body});
+
+  Future<FritzApiResponse> postRaw(Uri url, {Map<String, String>? headers, required String body});
 
   HomeAutoQueryCommand? _energyCommandForRange(SensorHistoryInterval range) {
     switch (range) {
@@ -507,6 +484,28 @@ abstract class FritzApiClient {
       humidityJumpThresholdPercent: humidityJumpThresholdPercent,
       enableJumpFilter: enableJumpFilter,
     );
+    return parsed.isEmpty ? null : parsed;
+  }
+
+  Future<Map<SensorHistoryInterval, EnergyReadings>?> _getSmarthomeEnergyHistory({
+    required int deviceId,
+    required List<SensorHistoryInterval> ranges,
+  }) async {
+    assert(sessionId != null && sessionId!.isNotEmpty, 'SessionId must not be null or empty');
+
+    final List<Map<String, dynamic>> units = await _getSmarthomeUnits();
+    if (units.isEmpty) {
+      return null;
+    }
+    final String? unitUid = await _resolveSmarthomeUnitUid(deviceId, units: units);
+    if (unitUid == null || unitUid.isEmpty) {
+      return null;
+    }
+    final Map<String, dynamic>? unit = await _getSmarthomeUnit(unitUid);
+    if (unit == null) {
+      return null;
+    }
+    final Map<SensorHistoryInterval, EnergyReadings> parsed = _parseSmarthomeEnergyHistory(unit, ranges: ranges);
     return parsed.isEmpty ? null : parsed;
   }
 
@@ -809,10 +808,12 @@ abstract class FritzApiClient {
     if (stats is! Map<String, dynamic>) {
       return result;
     }
-    final List<dynamic> tempEntries =
-        (stats['temperatures'] is List) ? (stats['temperatures'] as List) : const <dynamic>[];
-    final List<dynamic> humidityEntries =
-        (stats['humidities'] is List) ? (stats['humidities'] as List) : const <dynamic>[];
+    final List<dynamic> tempEntries = (stats['temperatures'] is List)
+        ? (stats['temperatures'] as List)
+        : const <dynamic>[];
+    final List<dynamic> humidityEntries = (stats['humidities'] is List)
+        ? (stats['humidities'] as List)
+        : const <dynamic>[];
     if (tempEntries.isEmpty && humidityEntries.isEmpty) {
       return result;
     }
@@ -835,6 +836,51 @@ abstract class FritzApiClient {
       }
     }
 
+    return result;
+  }
+
+  Map<SensorHistoryInterval, EnergyReadings> _parseSmarthomeEnergyHistory(
+    Map<String, dynamic> unit, {
+    required List<SensorHistoryInterval> ranges,
+  }) {
+    final Map<SensorHistoryInterval, EnergyReadings> result = <SensorHistoryInterval, EnergyReadings>{};
+    final dynamic stats = unit['statistics'];
+    if (stats is! Map<String, dynamic>) {
+      return result;
+    }
+    final dynamic energyList = stats['energies'] ?? stats['energy'];
+    final List<dynamic> energyEntries = energyList is List ? energyList : const <dynamic>[];
+    if (energyEntries.isEmpty) {
+      return result;
+    }
+    final DateTime now = DateTime.now();
+    for (final SensorHistoryInterval range in ranges) {
+      final Map<String, dynamic>? entry = _findSmarthomeStatEntry(energyEntries, range: range);
+      if (entry == null) {
+        continue;
+      }
+      final List<double> values = _extractNumericList(entry['values']);
+      if (values.isEmpty) {
+        continue;
+      }
+      final int? intervalSeconds = _resolveIntervalSeconds(
+        _asInt(entry['interval']),
+        range: range,
+        count: values.length,
+      );
+      final Map<DateTime, _EnergyReadingBuilder> builders = <DateTime, _EnergyReadingBuilder>{};
+      _appendEnergySeriesToBuilders(
+        builders,
+        values: values,
+        intervalSeconds: intervalSeconds,
+        referenceTime: now,
+        raw: entry,
+      );
+      final EnergyReadings readings = _energyBuildersToReadings(builders);
+      if (!readings.isEmpty) {
+        result[range] = readings;
+      }
+    }
     return result;
   }
 
@@ -906,22 +952,22 @@ abstract class FritzApiClient {
       );
     }
     if (enableJumpFilter) {
-    _applyJumpFilterToBuilders(
-      builders,
-      isDeviceOn: isDeviceOn,
-      threshold: temperatureJumpThresholdCelsius,
-      forTemperature: true,
-      intervalSeconds: temperatureIntervalSeconds,
-      range: range,
-    );
-    _applyJumpFilterToBuilders(
-      builders,
-      isDeviceOn: isDeviceOn,
-      threshold: humidityJumpThresholdPercent,
-      forTemperature: false,
-      intervalSeconds: humidityIntervalSeconds,
-      range: range,
-    );
+      _applyJumpFilterToBuilders(
+        builders,
+        isDeviceOn: isDeviceOn,
+        threshold: temperatureJumpThresholdCelsius,
+        forTemperature: true,
+        intervalSeconds: temperatureIntervalSeconds,
+        range: range,
+      );
+      _applyJumpFilterToBuilders(
+        builders,
+        isDeviceOn: isDeviceOn,
+        threshold: humidityJumpThresholdPercent,
+        forTemperature: false,
+        intervalSeconds: humidityIntervalSeconds,
+        range: range,
+      );
     }
     return _buildersToReadings(builders);
   }
@@ -1005,6 +1051,51 @@ abstract class FritzApiClient {
         enableJumpFilter: enableJumpFilter,
       );
       if (readings != null && !readings.isEmpty) {
+        result[range] = readings;
+      }
+    }
+    return result;
+  }
+
+  Future<Map<SensorHistoryInterval, EnergyReadings>> _getLegacyEnergyHistory({
+    required int deviceId,
+    required List<SensorHistoryInterval> ranges,
+  }) async {
+    final Map<SensorHistoryInterval, EnergyReadings> result = <SensorHistoryInterval, EnergyReadings>{};
+    for (final SensorHistoryInterval range in ranges) {
+      final Map<String, dynamic>? payload = await _getHomeAutoStats(
+        command: _sensorCommand(SensorStatType.temperature, range, prefixOverride: 'EnergyStats'),
+        deviceId: deviceId,
+      );
+      if (payload == null) {
+        continue;
+      }
+      final Map<String, dynamic> normalized = _normalizeEnergyPayload(payload);
+      EnergyStats? stats;
+      try {
+        stats = EnergyStats.fromJson(normalized);
+      } catch (error, stack) {
+        debugPrint('Failed to parse EnergyStats for range $range: $error\n$stack\nPayload: $normalized');
+        continue;
+      }
+      if (stats.energyStat.values.isEmpty) {
+        continue;
+      }
+      final List<double> values = stats.energyStat.values.map((int value) => value.toDouble()).toList();
+      final int? intervalSeconds = stats.energyStat.timesType > 0
+          ? stats.energyStat.timesType
+          : _resolveIntervalSeconds(null, range: range, count: values.length);
+      final DateTime referenceTime = _resolveLegacyReferenceTime(normalized) ?? DateTime.now();
+      final Map<DateTime, _EnergyReadingBuilder> builders = <DateTime, _EnergyReadingBuilder>{};
+      _appendEnergySeriesToBuilders(
+        builders,
+        values: values,
+        intervalSeconds: intervalSeconds,
+        referenceTime: referenceTime,
+        raw: normalized,
+      );
+      final EnergyReadings readings = _energyBuildersToReadings(builders);
+      if (!readings.isEmpty) {
         result[range] = readings;
       }
     }
@@ -1274,15 +1365,35 @@ abstract class FritzApiClient {
     final DateTime start = roundedReference.subtract(Duration(seconds: intervalSeconds * (length - 1)));
     for (int i = 0; i < length; i++) {
       final DateTime dt = start.add(Duration(seconds: intervalSeconds * i));
-      final _EnvironmentReadingBuilder builder = builders.putIfAbsent(
-        dt,
-        () => _EnvironmentReadingBuilder(dt),
-      );
+      final _EnvironmentReadingBuilder builder = builders.putIfAbsent(dt, () => _EnvironmentReadingBuilder(dt));
       if (isTemperature) {
         builder.temperatureCelsius = values[i];
       } else {
         builder.humidityPercent = values[i];
       }
+      if (raw != null) {
+        builder.addRaw(raw);
+      }
+    }
+  }
+
+  void _appendEnergySeriesToBuilders(
+    Map<DateTime, _EnergyReadingBuilder> builders, {
+    required List<double> values,
+    required int? intervalSeconds,
+    required DateTime referenceTime,
+    Object? raw,
+  }) {
+    if (values.isEmpty || intervalSeconds == null || intervalSeconds <= 0) {
+      return;
+    }
+    final DateTime roundedReference = _roundDown(referenceTime, intervalSeconds);
+    final int length = values.length;
+    final DateTime start = roundedReference.subtract(Duration(seconds: intervalSeconds * (length - 1)));
+    for (int i = 0; i < length; i++) {
+      final DateTime dt = start.add(Duration(seconds: intervalSeconds * i));
+      final _EnergyReadingBuilder builder = builders.putIfAbsent(dt, () => _EnergyReadingBuilder(dt));
+      builder.energyWh = values[i];
       if (raw != null) {
         builder.addRaw(raw);
       }
@@ -1316,6 +1427,21 @@ abstract class FritzApiClient {
         )
         .toList();
     return EnvironmentReadings(entries: entries);
+  }
+
+  EnergyReadings _energyBuildersToReadings(Map<DateTime, _EnergyReadingBuilder> builders) {
+    if (builders.isEmpty) {
+      return const EnergyReadings(entries: <EnergyReading>[]);
+    }
+    final List<_EnergyReadingBuilder> sorted = builders.values.toList()
+      ..sort((a, b) => a.dateTime.compareTo(b.dateTime));
+    final List<EnergyReading> entries = sorted
+        .map(
+          (builder) =>
+              EnergyReading(dateTime: builder.dateTime.toIso8601String(), energyWh: builder.energyWh, raw: builder.raw),
+        )
+        .toList();
+    return EnergyReadings(entries: entries);
   }
 
   Map<String, dynamic> _normalizeEnergyPayload(Map<String, dynamic> input) {
@@ -1443,17 +1569,20 @@ List<WifiClient> parseWifiClients(Map<String, dynamic> data) {
       final DateTime? lastSeen = _asDateTime(
         entry['lastused'] ?? entry['lastSeen'] ?? entry['lastUsed'] ?? ipv4Map?['lastused'],
       );
-      final properties2_4 = (entry['properties'] as List<dynamic>)
+      final List<Map<String, dynamic>> properties =
+          (entry['properties'] as List<dynamic>?)?.whereType<Map<String, dynamic>>().toList() ??
+          const <Map<String, dynamic>>[];
+      final properties2_4 = properties
           .where((dynamic item) {
             return item.containsKey('txt') && (item['txt'].startsWith('2,4 GHz'));
           })
           .map((item) => item['txt']);
-      final properties5 = (entry['properties'] as List<dynamic>)
+      final properties5 = properties
           .where((dynamic item) {
             return item.containsKey('txt') && (item['txt'].startsWith('5 GHz'));
           })
           .map((item) => item['txt']);
-      final properties6 = (entry['properties'] as List<dynamic>)
+      final properties6 = properties
           .where((dynamic item) {
             return item.containsKey('txt') && (item['txt'].startsWith('6 GHz'));
           })
@@ -1559,56 +1688,135 @@ class _EnvironmentReadingBuilder {
   }
 }
 
-/// Extracts counters for bytes sent/received from the FRITZ!Box JSON response.
-NetworkCounters? extractNetworkCounters(Map<String, dynamic> json) {
-  final Map<String, int> totals = <String, int>{};
+class _EnergyReadingBuilder {
+  _EnergyReadingBuilder(this.dateTime);
 
-  void walk(dynamic value) {
-    if (value is Map<String, dynamic>) {
-      value.forEach((String key, dynamic child) {
-        final String lower = key.toLowerCase();
-        final int? parsed = _asInt(child);
-        final bool isCounterKey =
-            lower.contains('bytes_sent') ||
-            lower.contains('bytesrcvd') ||
-            lower.contains('bytes_received') ||
-            lower.contains('bytesin') ||
-            lower.contains('bytesout') ||
-            lower == 'sum_bytes' ||
-            lower.contains('totalbytes') ||
-            lower == 'sent' ||
-            lower == 'rcvd' ||
-            lower == 'received';
-        if (parsed != null && isCounterKey) {
-          totals[lower] = parsed;
-        } else {
-          walk(child);
-        }
-      });
-    } else if (value is Iterable) {
-      value.forEach(walk);
+  final DateTime dateTime;
+  double? energyWh;
+  final List<Object?> _raw = <Object?>[];
+
+  Object? get raw {
+    if (_raw.isEmpty) {
+      return null;
     }
+    if (_raw.length == 1) {
+      return _raw.first;
+    }
+    return List<Object?>.unmodifiable(_raw);
   }
 
-  walk(json);
+  void addRaw(Object value) {
+    _raw.add(value);
+  }
+}
 
-  int? _firstMatching(bool Function(String key) predicate) {
-    for (final MapEntry<String, int> entry in totals.entries) {
-      if (predicate(entry.key)) {
-        return entry.value;
+List<int> _extractIntList(dynamic raw) {
+  if (raw == null) {
+    return const <int>[];
+  }
+  if (raw is List) {
+    final List<int> direct = raw.map(_asInt).whereType<int>().toList();
+    if (direct.isNotEmpty) {
+      return direct;
+    }
+    final List<int> extracted = <int>[];
+    for (final dynamic item in raw) {
+      final List<int> nested = _extractIntList(item);
+      if (nested.isNotEmpty) {
+        // Pair/list payloads often encode `[timestamp, value]`.
+        extracted.add(nested.last);
       }
     }
+    return extracted;
+  }
+  if (raw is String) {
+    final List<int> values = _extractIntListFromString(raw);
+    if (values.isNotEmpty) {
+      return values;
+    }
+    final int? scalar = _parseIntLoose(raw);
+    return scalar == null ? const <int>[] : <int>[scalar];
+  }
+  if (raw is Map) {
+    for (final String key in <String>['values', 'value', 'data', 'series', 'list', 'history', 'stats', 'samples']) {
+      if (raw.containsKey(key)) {
+        final List<int> values = _extractIntList(raw[key]);
+        if (values.isNotEmpty) {
+          return values;
+        }
+      }
+    }
+    final int? scalar = _firstIntFromMap(raw);
+    return scalar == null ? const <int>[] : <int>[scalar];
+  }
+  final int? scalar = _asInt(raw);
+  return scalar == null ? const <int>[] : <int>[scalar];
+}
+
+List<int> _extractIntListFromString(String raw) {
+  final String cleaned = raw
+      .trim()
+      .replaceAll('[', ' ')
+      .replaceAll(']', ' ')
+      .replaceAll(';', ',')
+      .replaceAll('|', ',')
+      .replaceAll('\n', ',')
+      .replaceAll('\t', ',');
+  if (cleaned.isEmpty) {
+    return const <int>[];
+  }
+  final List<int> values = cleaned.split(RegExp(r'[,\s]+')).map(_parseIntLoose).whereType<int>().toList();
+  return values;
+}
+
+int? _firstIntFromMap(Map<dynamic, dynamic> raw) {
+  for (final String key in <String>[
+    'value',
+    'bytes',
+    'count',
+    'current',
+    'sum',
+    'total',
+    'v',
+    'y',
+    'rx',
+    'tx',
+    'sent',
+    'received',
+  ]) {
+    if (!raw.containsKey(key)) {
+      continue;
+    }
+    final int? parsed = _asInt(raw[key]) ?? _parseIntLoose(raw[key]?.toString() ?? '');
+    if (parsed != null) {
+      return parsed;
+    }
+  }
+  for (final dynamic value in raw.values) {
+    final List<int> parsed = _extractIntList(value);
+    if (parsed.isNotEmpty) {
+      return parsed.last;
+    }
+  }
+  return null;
+}
+
+int? _parseIntLoose(String raw) {
+  final String value = raw.trim();
+  if (value.isEmpty) {
     return null;
   }
-
-  final int sent = _firstMatching((String key) => key.contains('sent') || key.contains('out')) ?? 0;
-  final int received =
-      _firstMatching((String key) => key.contains('rcvd') || key.contains('received') || key.contains('in')) ?? 0;
-  final int total = _firstMatching((String key) => key.contains('sum') || key.contains('total')) ?? (sent + received);
-
-  if (total == 0 && sent == 0 && received == 0) {
+  final int? asInt = int.tryParse(value);
+  if (asInt != null) {
+    return asInt;
+  }
+  final double? asDouble = double.tryParse(value.replaceAll(',', '.'));
+  if (asDouble != null) {
+    return asDouble.round();
+  }
+  final RegExpMatch? match = RegExp(r'-?\d+').firstMatch(value);
+  if (match == null) {
     return null;
   }
-
-  return NetworkCounters(totalBytes: total, bytesSent: sent, bytesReceived: received, raw: json);
+  return int.tryParse(match.group(0)!);
 }

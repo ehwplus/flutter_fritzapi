@@ -17,6 +17,11 @@ class _FakeFritzApiClient extends FritzApiClient {
   Future<FritzApiResponse> post(Uri url, {Map<String, String>? headers, required Map<String, String> body}) async {
     return const FritzApiResponse(statusCode: 404, body: '{}');
   }
+
+  @override
+  Future<FritzApiResponse> postRaw(Uri url, {Map<String, String>? headers, required String body}) async {
+    return const FritzApiResponse(statusCode: 404, body: '{}');
+  }
 }
 
 Map<String, FritzApiResponse> _buildResponses({

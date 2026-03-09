@@ -30,4 +30,24 @@ void main() {
       expect(result, 'fritz1234');
     });
   });
+
+  group('Select xml values with namespaces', () {
+    const soapResponse = '''
+      <s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/">
+        <s:Body>
+          <u:GetStatusInfoResponse xmlns:u="urn:dslforum-org:service:WANIPConnection:1">
+            <NewUptime>12345</NewUptime>
+          </u:GetStatusInfoResponse>
+        </s:Body>
+      </s:Envelope>
+    ''';
+
+    test('Parse NewUptime with namespace envelope', () async {
+      final result = extractValueOfXmlTagIgnoringNamespace(
+        xml: soapResponse,
+        xmlTag: 'NewUptime',
+      );
+      expect(result, '12345');
+    });
+  });
 }

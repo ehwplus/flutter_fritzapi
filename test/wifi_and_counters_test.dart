@@ -97,26 +97,4 @@ void main() {
       expect(clients.first.lastSeen, isNotNull);
     });
   });
-
-  group('Network counters', () {
-    test('extracts counters from nested payload', () {
-      final Map<String, dynamic> payload = <String, dynamic>{
-        'overview': <String, dynamic>{'bytes_sent': 1200, 'bytesrcvd': '3400'},
-        'totals': <String, dynamic>{'sum_bytes': '5000'},
-      };
-
-      final NetworkCounters? counters = extractNetworkCounters(payload);
-
-      expect(counters, isNotNull);
-      expect(counters!.bytesSent, 1200);
-      expect(counters.bytesReceived, 3400);
-      expect(counters.totalBytes, 5000);
-    });
-
-    test('returns null when no counters are present', () {
-      final NetworkCounters? counters = extractNetworkCounters(<String, dynamic>{'foo': 'bar'});
-
-      expect(counters, isNull);
-    });
-  });
 }

@@ -210,7 +210,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
   List<_DataType> _capabilitiesForDevice(Device? device, {required bool isRouter}) {
     if (isRouter) {
-      return const <_DataType>[/*_DataType.onlineCounter, */ _DataType.wifiClients];
+      return const <_DataType>[_DataType.wifiClients];
     }
     if (device == null) {
       return const <_DataType>[];
@@ -397,19 +397,6 @@ class _MyHomePageState extends State<MyHomePage> {
       throw StateError(l10n.loginRequired);
     }
     switch (type) {
-      /*case _DataType.onlineCounter:
-        final NetworkCounters? counters = await client.getOnlineCounters();
-        if (counters == null) {
-          throw StateError(l10n.noOnlineCounters);
-        }
-        return _DataPayload(
-          current: l10n.onlineCounters(
-            _formatBytes(counters.totalBytes),
-            _formatBytes(counters.bytesSent),
-            _formatBytes(counters.bytesReceived),
-          ),
-          raw: _stringifyRaw(counters.raw),
-        );*/
       case _DataType.temperature:
         if (device == null) {
           throw StateError(l10n.noDeviceSelected);
@@ -458,7 +445,13 @@ class _MyHomePageState extends State<MyHomePage> {
           throw StateError(l10n.noPower);
         }
         final PowerHistory? history = await client.getPowerHistory(effective.id, ranges: SensorHistoryInterval.values);
-        final String historyText = _formatPowerHistory(history);
+        final Map<SensorHistoryInterval, EnergyReadings> energyHistory = await client.getEnergyHistory(
+          effective.id,
+          ranges: const <SensorHistoryInterval>[SensorHistoryInterval.day],
+        );
+        final String summaryText = _formatPowerHistory(history);
+        final String energyText = _formatEnergyHistory(energyHistory, unit: 'Wh');
+        final String historyText = <String>[summaryText, energyText].where((String text) => text.isNotEmpty).join('\n');
         return _DataPayload(
           current: l10n.currentPower(value.toStringAsFixed(1)),
           history: historyText.isEmpty ? l10n.historyEnergyMissing : historyText,
@@ -473,17 +466,28 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
-  String _formatSensorHistory(Map<SensorHistoryInterval, SensorHistory> histories, {required String unit}) {
+  String _formatEnergyHistory(Map<SensorHistoryInterval, EnergyReadings> histories, {required String unit}) {
     if (histories.isEmpty) {
       return '';
     }
+    final EnergyReadings? readings = histories[SensorHistoryInterval.day] ?? histories.values.first;
+    if (readings == null || readings.entries.isEmpty) {
+      return '';
+    }
+    final List<EnergyReading> entries = List<EnergyReading>.from(readings.entries)
+      ..sort((a, b) => (a.dateTime ?? '').compareTo(b.dateTime ?? ''));
     final StringBuffer sb = StringBuffer();
-    histories.forEach((SensorHistoryInterval range, SensorHistory history) {
-      final double? avg = history.average;
-      if (avg != null) {
-        sb.writeln(l10n.historySensorEntry(_rangeLabel(range), '${avg.toStringAsFixed(1)} $unit'));
+    for (final EnergyReading entry in entries) {
+      final String? formattedTime = _formatEnvironmentTimestamp(entry.dateTime);
+      if (formattedTime == null || formattedTime.isEmpty) {
+        continue;
       }
-    });
+      if (entry.energyWh == null) {
+        sb.writeln('$formattedTime: null');
+        continue;
+      }
+      sb.writeln('$formattedTime: ${_formatNumeric(entry.energyWh!)} $unit');
+    }
     return sb.toString().trim();
   }
 
@@ -648,17 +652,6 @@ class _MyHomePageState extends State<MyHomePage> {
       return l10n.wifiLastSeenHours(diff.inHours.toString());
     }
     return l10n.wifiLastSeenDays(diff.inDays.toString());
-  }
-
-  String _formatBytes(int bytes) {
-    final List<String> units = l10n.byteUnits.split(',');
-    double value = bytes.toDouble();
-    int unitIndex = 0;
-    while (value >= 1024 && unitIndex < units.length - 1) {
-      value /= 1024;
-      unitIndex++;
-    }
-    return '${value.toStringAsFixed(value >= 10 ? 0 : 1)} ${units[unitIndex]}';
   }
 
   String _stringifyRaw(dynamic raw) {
@@ -960,7 +953,7 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 }
 
-enum _DataType { temperature, humidity, power, wifiClients } // onlineCounter
+enum _DataType { temperature, humidity, power, wifiClients }
 
 extension on _DataType {
   String label(AppLocalizations l10n) {
@@ -971,8 +964,6 @@ extension on _DataType {
         return l10n.humidityLabel;
       case _DataType.power:
         return l10n.powerLabel;
-      // case _DataType.onlineCounter:
-      //   return l10n.onlineCounterLabel;
       case _DataType.wifiClients:
         return l10n.wifiClientsLabel;
     }
@@ -986,8 +977,6 @@ extension on _DataType {
         return Icons.water_drop;
       case _DataType.power:
         return Icons.bolt;
-      // case _DataType.onlineCounter:
-      //   return Icons.network_check;
       case _DataType.wifiClients:
         return Icons.wifi;
     }
